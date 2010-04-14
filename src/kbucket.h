@@ -1,0 +1,57 @@
+#ifndef DHT_KBUCKET_H
+#define DHT_KBUCKET_H
+
+#include "types.h"
+#include "contact.h"
+
+#include <set>
+
+namespace dhtpp {
+
+	class CKbucket {
+	public:
+		enum ErrorCode {
+			SUCCEED,
+			FULL,
+			FAILED,
+		};
+		
+		CKbucket(const BigInt &low_bound, const BigInt &high_bound);
+
+		bool IdInRange(const NodeID &id) const;
+		ErrorCode AddContact(const Contact &contact);
+
+		// count = K = number_of_contacts_in_the_holder_bucket
+		bool AddContactForceK(const Contact &contact, const BigInt &holder_id, uint16 count);
+		bool RemoveContact(const NodeID &id);
+		bool LastSeenContact(Contact &out);
+		ErrorCode Split(CKbucket &first, CKbucket &second);
+
+		const BigInt &GetHighBound() const {
+			return high_bound;
+		}
+
+		const BigInt &GetLowBound() const {
+			return low_bound;
+		}
+
+		uint16 GetContactsNumber() const {
+			return (uint16) contacts.size();
+		}
+
+	private:
+		struct Comp {
+			bool operator()(const Contact &c1, const Contact &c2) {
+				return c1.GetId() < c2.GetId();
+			}
+		};
+
+		typedef std::set<Contact, Comp> ContactList;
+
+		ContactList contacts;
+		BigInt low_bound, high_bound;
+	};
+
+}
+
+#endif // DHT_KBUCKET_H
