@@ -5,11 +5,14 @@
 
 #include <boost/intrusive/set.hpp>
 
+#include <vector>
+
 namespace dhtpp {
 
 	class CRoutingTable {
 	public:
 		bool AddContact(const Contact &contact);
+		void GetClosestContacts(const NodeID &id, std::vector<NodeInfo> &out_contacts);
 
 	protected:
 		class CKbucketEntry : 
@@ -23,6 +26,8 @@ namespace dhtpp {
 			bool operator <(const CKbucketEntry &o) const {
 				return GetHighBound() < o.GetHighBound();
 			}
+
+			CKbucketEntry *parent_brother;
 		};
 
 		struct Comp {
@@ -38,7 +43,7 @@ namespace dhtpp {
 
 		Buckets buckets;
 		CKbucketEntry *holder_bucket, *holder_brother_bucket;
-		BigInt holder_id;
+		NodeID holder_id;
 	};
 
 }

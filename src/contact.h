@@ -6,32 +6,70 @@
 
 namespace dhtpp {
 
-	struct Contact {
-		NodeID node_id;
-		NodeIP node_ip;
-		uint16 node_port;
-		timestamp last_seen;
+	struct NodeAddress {
+		NodeIP ip;
+		uint16 port;
 
-		Contact() {}
-		Contact(const Contact &o);
-		Contact &operator =(const Contact &o);
-
-		const NodeID &GetId() const {
-			return node_id;
+		NodeAddress &operator =(const NodeAddress &o) {
+			ip = o.ip;
+			port = o.port;
+			return *this;
 		}
 	};
 
-	inline Contact::Contact(const Contact &o) {
-		*this = o;
-	}
+	struct NodeInfo : public NodeAddress {
+		NodeID id;
 
-	inline Contact &Contact::operator =(const Contact &o) {
-		node_id = o.node_id;
-		node_ip = o.node_ip;
-		node_port = o.node_port;
-		last_seen = o.last_seen;
-		return *this;
-	}
+		const NodeID &GetId() const {
+			return id;
+		}
+
+		NodeInfo &operator =(const NodeInfo &o) {
+			*(NodeAddress *) this = o;
+			id = o.id;
+			return *this;
+		}
+	};
+
+	struct Contact : public NodeInfo {
+		timestamp last_seen;
+
+		Contact() {}
+		Contact(const Contact &o) {
+			*this = o;
+		}
+
+		Contact &operator =(const Contact &o) {
+			*(NodeInfo *) this = o;
+			last_seen = o.last_seen;
+			return *this;
+		}
+	};
+
+	template<typename T>
+	struct distance_comp_ge {
+		distance_comp_ge(const BigInt &holder_id_) : holder_id(holder_id_) {};
+
+		bool operator()(const T &f1, const T &f2) {
+			return ((BigInt)f1.GetId() ^ holder_id) >= // Greater or equal
+				((BigInt)f2.GetId() ^ holder_id);
+		}
+
+		BigInt holder_id;
+	};
+
+	template<typename T>
+	struct distance_comp_le {
+		distance_comp_le(const BigInt &holder_id_) : holder_id(holder_id_) {};
+
+		bool operator()(const T &f1, const T &f2) {
+			return ((BigInt)f1.GetId() ^ holder_id) <= // Less or equal
+				((BigInt)f2.GetId() ^ holder_id);
+		}
+
+		BigInt holder_id;
+	};
+
 }
 
 #endif // DHT_CONTACT_H

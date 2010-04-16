@@ -16,7 +16,7 @@ namespace dhtpp {
 	}
 
 	CKbucket::ErrorCode CKbucket::AddContact(const Contact &contact) {
-		assert(IdInRange(contact.node_id));
+		assert(IdInRange(contact.GetId()));
 
 		if (contacts.size() >= K)
 			return FULL;
@@ -28,13 +28,17 @@ namespace dhtpp {
 		return FAILED;
 	}
 
-	bool CKbucket::AddContactForceK(const Contact &contact, const BigInt &holder_id, uint16 count) {
+	bool CKbucket::AddContactForceK(const Contact &contact, const NodeID &holder_id, uint16 count) {
 		assert(contacts.size() == K);
 
 		// Contacts for sorting
 		struct forceK {
 			ContactList::iterator it;
 			int last_seen_weight, distance_weight;
+
+			const NodeID &GetId() const {
+				return it->GetId();
+			}
 
 			forceK() {
 				last_seen_weight = distance_weight = 0;
@@ -53,19 +57,7 @@ namespace dhtpp {
 		for (i = 0, it = contacts.begin(); it != contacts.end(); ++it, ++i)
 			forceK_[i].it = it;
 
-		// sort by distance
-		struct distance_comp {
-			distance_comp(const BigInt &holder_id_) : holder_id(holder_id_) {};
-
-			bool operator()(const forceK &f1, const forceK &f2) {
-				return ((BigInt)f1.it->GetId() ^ holder_id) >= 
-					((BigInt)f2.it->GetId() ^ holder_id);
-			}
-
-			BigInt holder_id;
-		};
-
-		std::sort(forceK_, forceK_ + K-1, distance_comp(holder_id));
+		std::sort(forceK_, forceK_ + K-1, distance_comp_ge<forceK>((BigInt) holder_id));
 		for (i = 0; i < count; ++i) // only _count_ contacts
 			forceK_[i].distance_weight = i;
 
@@ -99,7 +91,7 @@ namespace dhtpp {
 
 	bool CKbucket::RemoveContact(const NodeID &id) {
 		Contact temp;
-		temp.node_id = id;
+		temp.id = id;
 		return contacts.erase(temp) > 0;
 	}
 
@@ -122,15 +114,22 @@ namespace dhtpp {
 		return true;
 	}
 
+	void CKbucket::GetContacts(std::vector<NodeInfo> &out_contacts) {
+		ContactList::iterator it = contacts.begin();
+		for (; it != contacts.end(); ++it) {
+			out_contacts.push_back(*it);
+		}
+	}
+
 	CKbucket::ErrorCode CKbucket::Split(CKbucket &first, CKbucket &second) {
 		ContactList::iterator it = contacts.begin(), end_it = contacts.end();
 		CKbucket::ErrorCode err;
 		for (; it != end_it; ++it) {
-			if (first.IdInRange(it->node_id)) {
+			if (first.IdInRange(it->GetId())) {
 				if ( (err = first.AddContact(*it)) != SUCCEED )
 					return err;
 			} else {
-				assert(second.IdInRange(it->node_id));
+				assert(second.IdInRange(it->GetId()));
 				if ( (err = second.AddContact(*it)) != SUCCEED )
 					return err;
 			}

@@ -5,6 +5,7 @@
 #include "contact.h"
 
 #include <set>
+#include <vector>
 
 namespace dhtpp {
 
@@ -22,9 +23,10 @@ namespace dhtpp {
 		ErrorCode AddContact(const Contact &contact);
 
 		// count = K = number_of_contacts_in_the_holder_bucket
-		bool AddContactForceK(const Contact &contact, const BigInt &holder_id, uint16 count);
+		bool AddContactForceK(const Contact &contact, const NodeID &holder_id, uint16 count);
 		bool RemoveContact(const NodeID &id);
 		bool LastSeenContact(Contact &out);
+		void GetContacts(std::vector<NodeInfo> &out_contacts);
 		ErrorCode Split(CKbucket &first, CKbucket &second);
 
 		const BigInt &GetHighBound() const {
