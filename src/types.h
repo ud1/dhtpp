@@ -17,6 +17,7 @@ namespace dhtpp {
 	typedef std::string NodeIP;
 
 	typedef boost::mp_math::mp_int<> BigInt;
+	typedef uint32 rpc_id;
 }
 
 #endif // DHT_TYPES_H

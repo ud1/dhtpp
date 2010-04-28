@@ -2,6 +2,7 @@
 #define DHT_KAD_RPC_H
 
 #include "contact.h"
+#include "types.h"
 
 #include <vector>
 #include <string>
@@ -10,10 +11,17 @@ namespace dhtpp {
 
 	struct RPCMessage {
 		NodeAddress from, to;
+		rpc_id id;
 	};
 
 	struct RPCRequest : public RPCMessage {
 		NodeID sender_id;
+		void Init(const NodeAddress &from_, const NodeAddress &to_, const NodeID &sender_id_, rpc_id id_) {
+			from = from_;
+			to = to_;
+			sender_id = sender_id_;
+			id = id_;
+		}
 	};
 
 	struct RPCResponse : public RPCMessage {

@@ -15,6 +15,10 @@ namespace dhtpp {
 			port = o.port;
 			return *this;
 		}
+
+		bool operator != (const NodeAddress &o) {
+			return (ip != o.ip) || (port != o.port);
+		}
 	};
 
 	struct NodeInfo : public NodeAddress {

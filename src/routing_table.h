@@ -11,6 +11,7 @@ namespace dhtpp {
 
 	class CRoutingTable {
 	public:
+		CRoutingTable(const NodeID &id);
 		bool AddContact(const Contact &contact);
 		void GetClosestContacts(const NodeID &id, std::vector<NodeInfo> &out_contacts);
 
@@ -26,8 +27,6 @@ namespace dhtpp {
 			bool operator <(const CKbucketEntry &o) const {
 				return GetHighBound() < o.GetHighBound();
 			}
-
-			CKbucketEntry *parent_brother;
 		};
 
 		struct Comp {

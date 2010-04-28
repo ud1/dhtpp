@@ -95,11 +95,11 @@ namespace dhtpp {
 		return contacts.erase(temp) > 0;
 	}
 
-	bool CKbucket::LastSeenContact(Contact &out) {
+	bool CKbucket::LastSeenContact(Contact &out) const {
 		if (!contacts.size())
 			return false;
 
-		ContactList::iterator it = contacts.begin(), c = it;
+		ContactList::const_iterator it = contacts.begin(), c = it;
 		timestamp stamp = it->last_seen;
 
 		for (; it != contacts.end(); ++it) {
@@ -114,15 +114,15 @@ namespace dhtpp {
 		return true;
 	}
 
-	void CKbucket::GetContacts(std::vector<NodeInfo> &out_contacts) {
-		ContactList::iterator it = contacts.begin();
+	void CKbucket::GetContacts(std::vector<NodeInfo> &out_contacts) const {
+		ContactList::const_iterator it = contacts.begin();
 		for (; it != contacts.end(); ++it) {
 			out_contacts.push_back(*it);
 		}
 	}
 
-	CKbucket::ErrorCode CKbucket::Split(CKbucket &first, CKbucket &second) {
-		ContactList::iterator it = contacts.begin(), end_it = contacts.end();
+	CKbucket::ErrorCode CKbucket::Split(CKbucket &first, CKbucket &second) const {
+		ContactList::const_iterator it = contacts.begin(), end_it = contacts.end();
 		CKbucket::ErrorCode err;
 		for (; it != end_it; ++it) {
 			if (first.IdInRange(it->GetId())) {

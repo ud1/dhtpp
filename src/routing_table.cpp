@@ -5,6 +5,17 @@
 
 namespace dhtpp {
 
+	CRoutingTable::CRoutingTable(const NodeID &id) {
+		holder_id = id;
+		holder_brother_bucket = NULL;
+
+		BigInt high_bound;
+		high_bound.pow2(8*NODE_ID_LENGTH_BYTES);
+		high_bound--;
+		holder_bucket = new CKbucketEntry(0, high_bound);
+		buckets.insert(*holder_bucket);
+	}
+
 	bool CRoutingTable::AddContact(const Contact &contact) {
 		BigInt id = (BigInt) contact.GetId();
 		Buckets::iterator it = buckets.lower_bound(id, Comp());
@@ -31,7 +42,17 @@ namespace dhtpp {
 				buckets.insert(*left);
 				buckets.insert(*right);
 				delete ptr;
+
+				if (left->IdInRange(holder_id)) {
+					holder_bucket = left;
+					holder_brother_bucket = right;
+				} else {
+					holder_bucket = right;
+					holder_brother_bucket = left;
+				}
+
 				return AddContact(contact);
+
 			} else if (ptr == holder_brother_bucket) {
 				// ForceK optimization
 				uint16 count = K - holder_bucket->GetContactsNumber();
@@ -65,25 +86,29 @@ namespace dhtpp {
 		uint16 contacts_needed = K - out_contacts.size();
 		std::vector<NodeInfo> additional_contacts;
 
-		// Check if we have brother
-		if (&*it == holder_bucket) {
-			holder_brother_bucket->GetContacts(additional_contacts);
-		} else if (&*it == holder_brother_bucket) {
-			holder_bucket->GetContacts(additional_contacts);
-		}
-
-		if (additional_contacts.size() < contacts_needed) {
-			// We still have no enough contacts
-			// go up through the tree
-
-			CKbucketEntry *buck = it->parent_brother;
-			while (buck) {
-				buck->GetContacts(additional_contacts);
-				if (additional_contacts.size() >= contacts_needed)
-					break;
-
-				buck = buck->parent_brother;
+		// sort buckets by the distance
+		struct Buck {
+			const CKbucketEntry *entry;
+			Buck(const CKbucketEntry *e) {
+				entry = e;
 			}
+			const BigInt &GetId() const {
+				return entry->GetHighBound();
+			}
+		};
+
+		std::vector<Buck> sorted_buckets;
+		sorted_buckets.reserve(buckets.size());
+		for (it = buckets.begin(); it != buckets.end(); ++it)
+			sorted_buckets.push_back(Buck(&*it));
+
+		std::sort(sorted_buckets.begin(), sorted_buckets.end(), distance_comp_le<Buck>(id));
+
+		// extract additional contacts
+		for (int i = 0; i < sorted_buckets.size(); ++i) {
+			sorted_buckets[i].entry->GetContacts(additional_contacts);
+			if (additional_contacts.size() >= contacts_needed)
+				break;
 		}
 
 		if (additional_contacts.size() <= contacts_needed) {

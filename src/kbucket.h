@@ -25,9 +25,9 @@ namespace dhtpp {
 		// count = K = number_of_contacts_in_the_holder_bucket
 		bool AddContactForceK(const Contact &contact, const NodeID &holder_id, uint16 count);
 		bool RemoveContact(const NodeID &id);
-		bool LastSeenContact(Contact &out);
-		void GetContacts(std::vector<NodeInfo> &out_contacts);
-		ErrorCode Split(CKbucket &first, CKbucket &second);
+		bool LastSeenContact(Contact &out) const;
+		void GetContacts(std::vector<NodeInfo> &out_contacts) const;
+		ErrorCode Split(CKbucket &first, CKbucket &second) const;
 
 		const BigInt &GetHighBound() const {
 			return high_bound;

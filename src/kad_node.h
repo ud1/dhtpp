@@ -4,11 +4,20 @@
 #include "transport.h"
 #include "routing_table.h"
 #include "store.h"
+#include "types.h"
+#include "job_scheduler.h"
+
+#include <set>
+
+#include <boost/function.hpp>
+#include <boost/intrusive/set.hpp>
 
 namespace dhtpp {
 
 	class CKadNode : public INode {
 	public:
+		CKadNode(const NodeID &id, CJobScheduler *sched);
+
 		void OnPingRequest(const PingRequest &req);
 		void OnStoreRequest(const StoreRequest &req);
 		void OnFindNodeRequest(const FindNodeRequest &req);
@@ -19,12 +28,116 @@ namespace dhtpp {
 		void OnFindNodeResponse(const FindNodeResponse &resp);
 		void OnFindValueResponse(const FindValueResponse &resp);
 
+		enum ErrorCode {
+			SUCCEED,
+			TIMEOUT,
+			FAILED,
+		};
+
+		typedef boost::function<void (ErrorCode code, const PingResponse &resp)> ping_callback;
+		typedef boost::function<void (ErrorCode code, const StoreResponse &resp)> store_callback;
+		typedef boost::function<void (ErrorCode code, const std::vector<NodeInfo> &resp)> find_node_callback;
+		typedef boost::function<void (ErrorCode code, const FindValueResponse &resp)> find_value_callback;
+
+		rpc_id Ping(const NodeAddress &to, const ping_callback &callback);
+		rpc_id Store(const NodeID &key, const std::string &value, const store_callback &callback);
+		rpc_id FindCloseNodes(const NodeID &id, const find_node_callback &callback);
+		rpc_id FindValue(const NodeID &key, const find_value_callback &callback);
+
 	protected:
-		void UpdateRoutingTable(const RPCRequest &req);
 		ITransport *transport;
 		NodeInfo my_info;
 		CRoutingTable routing_table;
 		CStore store;
+		CJobScheduler *scheduler;
+
+		struct PingRequestData {
+			PingRequestData() {
+				attempts = 0;
+			}
+			PingRequest req;
+			ping_callback callback;
+			uint16 attempts;
+			rpc_id GetId() const {
+				return req.id;
+			}
+		};
+
+		struct FindRequestData {
+			rpc_id id;
+			rpc_id GetId() const {
+				return id;
+			}
+
+			NodeID target;
+
+			enum FindType {
+				FIND_NODE,
+				FIND_VALUE,
+			} type;
+
+			find_node_callback find_node_callback_;
+			find_value_callback find_value_callback_;
+
+			struct CandidateLite {
+				BigInt distance;
+				bool operator < (const CandidateLite &o) const {
+					return distance < o.distance;
+				}
+			};
+
+			struct Candidate : 
+				public CandidateLite,
+				public NodeInfo,
+				public boost::intrusive::set_base_hook<> 
+			{
+				Candidate(const NodeInfo &info, const NodeID &target) {
+					*(NodeInfo *)this = info;
+					distance = (const BigInt) id ^ (const BigInt) target;
+					attempts = 0;
+					type = UNKNOWN;
+				}
+
+				enum {
+					UNKNOWN,
+					PENDING,
+					DOWN,
+					UP,
+				} type;
+
+				uint16 attempts;
+
+				using CandidateLite::operator <;
+			};
+
+			typedef boost::intrusive::set<Candidate> Candidates;
+			Candidates candidates;
+		};
+
+		template <typename ReqType>
+		struct Comp {
+			bool operator()(const ReqType *d1, const ReqType *d2) const {
+				return d1->GetId() < d2->GetId();
+			}
+		};
+
+		typedef std::set<PingRequestData *, Comp<PingRequestData> > PingRequests;
+		typedef std::set<FindRequestData *, Comp<FindRequestData> > FindRequests;
+
+		PingRequests ping_requests;
+		FindRequests find_requests;
+
+		rpc_id ping_id_counter, store_id_counter, find_id_counter;
+
+		void UpdateRoutingTable(const RPCRequest &req);
+		void PingRequestTimeout(rpc_id id);
+
+		FindRequestData *CreateFindData(const NodeID &id, FindRequestData::FindType);
+		void FindRequestTimeout(FindRequestData *data, FindRequestData::Candidate *cand);
+		// return true if there is pending nodes
+		bool SendFindRequestToOneNode(FindRequestData *data);
+		void SendFindRequestToOneNode(FindRequestData *data, FindRequestData::Candidate *cand);
+		void FinishSearch(FindRequestData *data, const FindNodeResponse *resp);
 	};
 }
 
