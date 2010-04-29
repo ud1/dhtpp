@@ -30,14 +30,13 @@ namespace dhtpp {
 
 		enum ErrorCode {
 			SUCCEED,
-			TIMEOUT,
 			FAILED,
 		};
 
-		typedef boost::function<void (ErrorCode code, const PingResponse &resp)> ping_callback;
-		typedef boost::function<void (ErrorCode code, const StoreResponse &resp)> store_callback;
-		typedef boost::function<void (ErrorCode code, const std::vector<NodeInfo> &resp)> find_node_callback;
-		typedef boost::function<void (ErrorCode code, const FindValueResponse &resp)> find_value_callback;
+		typedef boost::function<void (ErrorCode code, const PingResponse *resp)> ping_callback;
+		typedef boost::function<void (ErrorCode code, const StoreResponse *resp)> store_callback;
+		typedef boost::function<void (ErrorCode code, const FindNodeResponse *resp)> find_node_callback;
+		typedef boost::function<void (ErrorCode code, const FindValueResponse *resp)> find_value_callback;
 
 		rpc_id Ping(const NodeAddress &to, const ping_callback &callback);
 		rpc_id Store(const NodeID &key, const std::string &value, const store_callback &callback);
@@ -112,6 +111,9 @@ namespace dhtpp {
 
 			typedef boost::intrusive::set<Candidate> Candidates;
 			Candidates candidates;
+
+			Candidate *GetCandidate(const NodeID &id);
+			void Update(const std::vector<NodeInfo> &nodes);
 		};
 
 		template <typename ReqType>
@@ -130,14 +132,19 @@ namespace dhtpp {
 		rpc_id ping_id_counter, store_id_counter, find_id_counter;
 
 		void UpdateRoutingTable(const RPCRequest &req);
+		void UpdateRoutingTable(const RPCResponse &resp);
 		void PingRequestTimeout(rpc_id id);
 
 		FindRequestData *CreateFindData(const NodeID &id, FindRequestData::FindType);
 		void FindRequestTimeout(FindRequestData *data, FindRequestData::Candidate *cand);
+
 		// return true if there is pending nodes
 		bool SendFindRequestToOneNode(FindRequestData *data);
+
 		void SendFindRequestToOneNode(FindRequestData *data, FindRequestData::Candidate *cand);
-		void FinishSearch(FindRequestData *data, const FindNodeResponse *resp);
+		void CallFindNodeCallback(FindRequestData *data);
+		void FinishSearch(FindRequestData *data);
+		FindRequestData *GetFindData(rpc_id id);
 	};
 }
 

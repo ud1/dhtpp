@@ -1,4 +1,5 @@
 #include "kad_node.h"
+#include "timer.h"
 
 #include <boost/bind.hpp>
 
@@ -49,10 +50,23 @@ namespace dhtpp {
 	}
 
 	void CKadNode::UpdateRoutingTable(const RPCRequest &req) {
+		Contact contact;
+		contact.id = req.sender_id;
+		(NodeAddress) contact = req.from;
+		contact.last_seen = GetTimerInstance()->GetCurrentTime();
+		routing_table.AddContact(contact);
+	}
 
+	void CKadNode::UpdateRoutingTable(const RPCResponse &resp) {
+		Contact contact;
+		contact.id = resp.responder_id;
+		(NodeAddress) contact = resp.from;
+		contact.last_seen = GetTimerInstance()->GetCurrentTime();
+		routing_table.AddContact(contact);
 	}
 
 	void CKadNode::OnPingResponse(const PingResponse &resp) {
+		UpdateRoutingTable(resp);
 		PingRequestData temp, *data;
 		temp.req.id = resp.id;
 		PingRequests::iterator it = ping_requests.find(&temp);
@@ -62,7 +76,7 @@ namespace dhtpp {
 		if (data->req.to != resp.from)
 			return;
 		scheduler->CancelJobsByOwner(data);
-		data->callback(SUCCEED, resp);
+		data->callback(SUCCEED, &resp);
 		ping_requests.erase(it);
 		delete data;
 	}
@@ -89,29 +103,54 @@ namespace dhtpp {
 			scheduler->AddJob_(timeout_period, boost::bind(&CKadNode::PingRequestTimeout, this, id), data);
 		} else {
 			ping_requests.erase(it);
-			data->callback(TIMEOUT, PingResponse());
+			data->callback(FAILED, NULL);
 			delete data;
 		}
 	}
 
-	void CKadNode::OnFindNodeResponse(const FindNodeResponse &resp) {
+	CKadNode::FindRequestData *CKadNode::GetFindData(rpc_id id) {
 		// Get FindRequestData by rpc_id
-		FindRequestData temp, *data;
-		temp.id = resp.id;
+		FindRequestData temp;
+		temp.id = id;
 		FindRequests::iterator it = find_requests.find(&temp);
 		if (it == find_requests.end())
-			return;
-		data = *it;
-		if (data->type != FindRequestData::FIND_NODE)
+			return NULL;
+		return *it;
+	}
+
+	CKadNode::FindRequestData::Candidate *CKadNode::FindRequestData::GetCandidate(const NodeID &id) {
+		// Get Candidate by NodeId
+		FindRequestData::CandidateLite lite;
+		lite.distance = (BigInt) id ^ (BigInt) target;
+		FindRequestData::Candidates::iterator cit = candidates.find(lite, std::less<FindRequestData::CandidateLite>());
+		if (cit == candidates.end())
+			return NULL;
+		return &*cit;
+	}
+
+	void CKadNode::FindRequestData::Update(const std::vector<NodeInfo> &nodes) {
+		// update contacts
+		std::vector<NodeInfo>::const_iterator vit;
+		for (vit = nodes.begin(); vit != nodes.end(); ++vit) {
+			Candidate *cand = new Candidate(*vit, target);
+			if (!candidates.insert(*cand).second) {
+				// already exist
+				delete cand;
+			}
+		}
+	}
+
+	void CKadNode::OnFindNodeResponse(const FindNodeResponse &resp) {
+		UpdateRoutingTable(resp);
+		// Get FindRequestData by rpc_id
+		FindRequestData *data = GetFindData(resp.id);
+		if (!data || data->type != FindRequestData::FIND_NODE)
 			return;
 
 		// Get Candidate by NodeId
-		FindRequestData::CandidateLite lite;
-		lite.distance = (BigInt) resp.responder_id ^ (BigInt) data->target;
-		FindRequestData::Candidates::iterator cit = data->candidates.find(lite, std::less<FindRequestData::CandidateLite>());
-		if (cit == data->candidates.end())
+		FindRequestData::Candidate *cand = data->GetCandidate(resp.responder_id);
+		if (!cand)
 			return;
-		FindRequestData::Candidate *cand = &*cit;
 
 		// Cancel timeout
 		scheduler->CancelJobsByOwner(cand);
@@ -119,23 +158,62 @@ namespace dhtpp {
 		cand->type = FindRequestData::Candidate::UP;
 		
 		// update contacts
-		std::vector<NodeInfo>::const_iterator vit;
-		for (vit = resp.nodes.begin(); vit != resp.nodes.end(); ++vit) {
-			FindRequestData::Candidate *cand = new FindRequestData::Candidate(*vit, data->target);
-			if (!data->candidates.insert(*cand).second) {
-				// already exist
-				delete cand;
-			}
+		data->Update(resp.nodes);
+
+		if (!SendFindRequestToOneNode(data)) {
+			CallFindNodeCallback(data);
+			FinishSearch(data);
+		}
+	}
+
+	void CKadNode::OnFindValueResponse(const FindValueResponse &resp) {
+		UpdateRoutingTable(resp);
+		// Get FindRequestData by rpc_id
+		FindRequestData *data = GetFindData(resp.id);
+		if (!data || data->type != FindRequestData::FIND_VALUE)
+			return;
+
+		// Get Candidate by NodeId
+		FindRequestData::Candidate *cand = data->GetCandidate(resp.responder_id);
+		if (!cand)
+			return;
+
+		// Cancel timeout
+		scheduler->CancelJobsByOwner(cand);
+
+		cand->type = FindRequestData::Candidate::UP;
+
+		if (resp.values.size()) {
+			data->find_value_callback_(SUCCEED, &resp);
+			FinishSearch(data);
+			return;
 		}
 
-		if (!SendFindRequestToOneNode(data))
-			FinishSearch(data, &resp);
+		// update contacts
+		data->Update(resp.nodes);
+
+		if (!SendFindRequestToOneNode(data)) {
+			data->find_value_callback_(FAILED, NULL);
+			FinishSearch(data);
+		}
 	}
 
 	rpc_id CKadNode::FindCloseNodes(const NodeID &id, const find_node_callback &callback) {
 		// Create request data
 		FindRequestData *data = CreateFindData(id, FindRequestData::FIND_NODE);
 		data->find_node_callback_ = callback;
+
+		// Send requests to closest alpha nodes
+		for (int i = 0; i < alpha; ++i) {
+			SendFindRequestToOneNode(data);
+		}
+		return data->id;
+	}
+
+	rpc_id CKadNode::FindValue(const NodeID &key, const find_value_callback &callback) {
+		// Create request data
+		FindRequestData *data = CreateFindData(key, FindRequestData::FIND_VALUE);
+		data->find_value_callback_ = callback;
 
 		// Send requests to closest alpha nodes
 		for (int i = 0; i < alpha; ++i) {
@@ -172,17 +250,24 @@ namespace dhtpp {
 		} else {
 			cand->type = FindRequestData::Candidate::DOWN;
 		}
-		if (!SendFindRequestToOneNode(data))
-			FinishSearch(data, NULL);
+		if (!SendFindRequestToOneNode(data)) {
+			if (data->type == FindRequestData::FIND_NODE)
+				CallFindNodeCallback(data);
+			else data->find_value_callback_(FAILED, NULL);
+			FinishSearch(data);
+		}
 	}
 
 	bool CKadNode::SendFindRequestToOneNode(FindRequestData *data) {
 		bool pending_nodes = false;
 		FindRequestData::Candidates::iterator it;
-		for (it = data->candidates.begin(); it != data->candidates.end(); ++it) {
+		int up_count = 0;
+		for (it = data->candidates.begin(); it != data->candidates.end() && up_count < K; ++it) {
 			FindRequestData::Candidate *cand = &*it;
 			if (cand->type == FindRequestData::Candidate::PENDING)
 				pending_nodes = true;
+			if (cand->type == FindRequestData::Candidate::UP)
+				++up_count;
 			if (cand->type != FindRequestData::Candidate::UNKNOWN)
 				continue;
 			SendFindRequestToOneNode(data, cand);
@@ -192,38 +277,54 @@ namespace dhtpp {
 	}
 
 	void CKadNode::SendFindRequestToOneNode(FindRequestData *data, FindRequestData::Candidate *cand) {
-		FindNodeRequest req;
-		req.Init(my_info, *cand, my_info.GetId(), data->id);
-		req.target = data->target;
-		cand->type = FindRequestData::Candidate::PENDING;
-		transport->SendFindNodeRequest(req);
-		scheduler->AddJob_(timeout_period, boost::bind(&CKadNode::FindRequestTimeout, this, data, cand), cand);
+		if (data->type == FindRequestData::FIND_NODE) {
+			FindNodeRequest req;
+			req.Init(my_info, *cand, my_info.GetId(), data->id);
+			req.target = data->target;
+			cand->type = FindRequestData::Candidate::PENDING;
+			transport->SendFindNodeRequest(req);
+			scheduler->AddJob_(timeout_period, boost::bind(&CKadNode::FindRequestTimeout, this, data, cand), cand);
+		} else {
+			FindValueRequest req;
+			req.Init(my_info, *cand, my_info.GetId(), data->id);
+			req.key = data->target;
+			cand->type = FindRequestData::Candidate::PENDING;
+			transport->SendFindValueRequest(req);
+			scheduler->AddJob_(timeout_period, boost::bind(&CKadNode::FindRequestTimeout, this, data, cand), cand);
+		}
 	}
 
-	void CKadNode::FinishSearch(FindRequestData *data, const FindNodeResponse *resp) {
-		if (data->type == FindRequestData::FIND_NODE) {
-			// do callback
-			std::vector<NodeInfo> closest_contacts;
-			int i = 0;
-			FindRequestData::Candidates::iterator it;
-			for (it = data->candidates.begin(); it != data->candidates.end() && i < K; ++it) {
-				FindRequestData::Candidate *cand = &*it;
-				if (cand->type == FindRequestData::Candidate::UP) {
-					++i;
-					closest_contacts.push_back(*(const NodeInfo *)cand);
-				}
+	void CKadNode::CallFindNodeCallback(FindRequestData *data) {
+		assert(data->type == FindRequestData::FIND_NODE);
+		// do callback
+		FindNodeResponse closest_contacts;
+		closest_contacts.id = data->id;
+		int i = 0;
+		FindRequestData::Candidates::iterator it;
+		for (it = data->candidates.begin(); it != data->candidates.end() && i < K; ++it) {
+			FindRequestData::Candidate *cand = &*it;
+			if (cand->type == FindRequestData::Candidate::UP) {
+				++i;
+				closest_contacts.nodes.push_back(*(const NodeInfo *)cand);
 			}
-
-			if (closest_contacts.size())
-				data->find_node_callback_(SUCCEED, closest_contacts);
-			else data->find_node_callback_(FAILED, closest_contacts);
 		}
 
+		if (closest_contacts.nodes.size())
+			data->find_node_callback_(SUCCEED, &closest_contacts);
+		else data->find_node_callback_(FAILED, NULL);		
+	}
+
+	void CKadNode::FinishSearch(FindRequestData *data) {
 		// Clean up
 		FindRequestData::Candidates::iterator it;
 		for (it = data->candidates.begin(); it != data->candidates.end(); ) {
 			FindRequestData::Candidate *cand = &*it;
 			it = data->candidates.erase(it);
+
+			if (cand->type == FindRequestData::Candidate::PENDING) {
+				scheduler->CancelJobsByOwner(cand);
+			}
+
 			delete cand;
 		}
 
