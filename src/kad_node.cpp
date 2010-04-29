@@ -2,6 +2,7 @@
 #include "timer.h"
 
 #include <boost/bind.hpp>
+#include <boost/lambda/lambda.hpp>
 
 namespace dhtpp {
 
@@ -76,7 +77,7 @@ namespace dhtpp {
 		if (data->req.to != resp.from)
 			return;
 		scheduler->CancelJobsByOwner(data);
-		data->callback(SUCCEED, &resp);
+		data->callback(SUCCEED, resp.id);
 		ping_requests.erase(it);
 		delete data;
 	}
@@ -103,7 +104,7 @@ namespace dhtpp {
 			scheduler->AddJob_(timeout_period, boost::bind(&CKadNode::PingRequestTimeout, this, id), data);
 		} else {
 			ping_requests.erase(it);
-			data->callback(FAILED, NULL);
+			data->callback(FAILED, id);
 			delete data;
 		}
 	}
@@ -331,4 +332,88 @@ namespace dhtpp {
 		find_requests.erase(data);
 		delete data;
 	}
+
+	rpc_id CKadNode::Store(const NodeID &key, const std::string &value, const store_callback &callback) {
+		StoreRequestData *data = new StoreRequestData;
+		data->key = key;
+		data->value = value;
+		data->callback = callback;
+		data->id = FindCloseNodes(key, boost::bind(&CKadNode::DoStore, this, data, boost::lambda::_1, boost::lambda::_2));
+		return data->id;
+	}
+
+	void CKadNode::DoStore(StoreRequestData *data, ErrorCode code, const FindNodeResponse *resp) {
+		if (code == FAILED) {
+			data->callback(FAILED, data->id);
+			delete data;
+			return;
+		}
+
+		store_requests.insert(data);
+
+		// Send Store requests
+		StoreRequest req;
+		req.key = data->key;
+		req.value = data->value;
+
+		std::vector<NodeInfo>::const_iterator it;
+		for (it = resp->nodes.begin(); it != resp->nodes.end(); ++it) {
+			StoreRequestData::StoreNode *node = new StoreRequestData::StoreNode;
+			*(NodeInfo *)node = *it;
+			data->store_nodes.insert(node);
+			req.Init(my_info, *(NodeAddress *)node, my_info.GetId(), data->id);
+			transport->SendStoreRequest(req);
+			scheduler->AddJob_(timeout_period, boost::bind(&CKadNode::StoreRequestTimeout, this, data, node), node);
+		}
+	}
+
+	void CKadNode::StoreRequestTimeout(StoreRequestData *data, StoreRequestData::StoreNode *node) {
+		if (node->attempts++ < attempts_number) {
+			// Repeat request
+			StoreRequest req;
+			req.key = data->key;
+			req.value = data->value;
+			req.Init(my_info, *(NodeAddress *)node, my_info.GetId(), data->id);
+			transport->SendStoreRequest(req);
+			scheduler->AddJob_(timeout_period, boost::bind(&CKadNode::StoreRequestTimeout, this, data, node), node);
+		} else {
+			data->store_nodes.erase(node);
+			delete node;
+			if (!data->store_nodes.size())
+				FinishStore(data);
+		}
+	}
+
+	void CKadNode::FinishStore(StoreRequestData *data) {
+		if (data->succeded > 0)
+			data->callback(SUCCEED, data->id);
+		else data->callback(FAILED, data->id);
+
+		store_requests.erase(data);
+
+		delete data;
+	}
+
+	void CKadNode::OnStoreResponse(const StoreResponse &resp) {
+		StoreRequestData temp, *data;
+		temp.id = resp.id;
+		StoreRequests::iterator it = store_requests.find(&temp);
+		if (it == store_requests.end())
+			return;
+		data = *it;
+
+		std::set<StoreRequestData::StoreNode *>::iterator sit;
+		for (sit = data->store_nodes.begin(); sit != data->store_nodes.end(); ++sit) {
+			StoreRequestData::StoreNode *node = *sit;
+			if (node->id == resp.responder_id) {
+				scheduler->CancelJobsByOwner(node);
+				data->store_nodes.erase(sit);
+				delete node;
+				break;
+			}
+		}
+		if (!data->store_nodes.size())
+			FinishStore(data);
+	}
+
 }

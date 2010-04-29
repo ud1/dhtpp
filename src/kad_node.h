@@ -33,8 +33,8 @@ namespace dhtpp {
 			FAILED,
 		};
 
-		typedef boost::function<void (ErrorCode code, const PingResponse *resp)> ping_callback;
-		typedef boost::function<void (ErrorCode code, const StoreResponse *resp)> store_callback;
+		typedef boost::function<void (ErrorCode code, rpc_id id)> ping_callback;
+		typedef boost::function<void (ErrorCode code, rpc_id id)> store_callback;
 		typedef boost::function<void (ErrorCode code, const FindNodeResponse *resp)> find_node_callback;
 		typedef boost::function<void (ErrorCode code, const FindValueResponse *resp)> find_value_callback;
 
@@ -116,6 +116,31 @@ namespace dhtpp {
 			void Update(const std::vector<NodeInfo> &nodes);
 		};
 
+		struct StoreRequestData {
+			NodeID key;
+			std::string value;
+			rpc_id id;
+			store_callback callback;
+			uint16 succeded;
+
+			StoreRequestData() {
+				succeded = 0;
+			}
+
+			rpc_id GetId() const {
+				return id;
+			}
+
+			struct StoreNode : public NodeInfo {
+				StoreNode() {
+					attempts = 0;
+				}
+				uint16 attempts;
+			};
+
+			std::set<StoreNode *> store_nodes;
+		};
+
 		template <typename ReqType>
 		struct Comp {
 			bool operator()(const ReqType *d1, const ReqType *d2) const {
@@ -125,9 +150,11 @@ namespace dhtpp {
 
 		typedef std::set<PingRequestData *, Comp<PingRequestData> > PingRequests;
 		typedef std::set<FindRequestData *, Comp<FindRequestData> > FindRequests;
+		typedef std::set<StoreRequestData *, Comp<StoreRequestData> > StoreRequests;
 
 		PingRequests ping_requests;
 		FindRequests find_requests;
+		StoreRequests store_requests;
 
 		rpc_id ping_id_counter, store_id_counter, find_id_counter;
 
@@ -145,6 +172,10 @@ namespace dhtpp {
 		void CallFindNodeCallback(FindRequestData *data);
 		void FinishSearch(FindRequestData *data);
 		FindRequestData *GetFindData(rpc_id id);
+
+		void DoStore(StoreRequestData *data, ErrorCode code, const FindNodeResponse *resp);
+		void StoreRequestTimeout(StoreRequestData *data, StoreRequestData::StoreNode *node);
+		void FinishStore(StoreRequestData *data);
 	};
 }
 
