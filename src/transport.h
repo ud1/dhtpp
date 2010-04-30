@@ -7,6 +7,7 @@ namespace dhtpp {
 
 	class INode {
 	public:
+		virtual const NodeInfo &GetNodeInfo() const = 0;
 		virtual void OnPingRequest(const PingRequest &req) = 0;
 		virtual void OnStoreRequest(const StoreRequest &req) = 0;
 		virtual void OnFindNodeRequest(const FindNodeRequest &req) = 0;
@@ -20,10 +21,6 @@ namespace dhtpp {
 
 	class ITransport {
 	public:
-		void SetNode(INode *h) {
-			node = h;
-		}
-
 		virtual void SendPingRequest(const PingRequest &req) = 0;
 		virtual void SendStoreRequest(const StoreRequest &req) = 0;
 		virtual void SendFindNodeRequest(const FindNodeRequest &req) = 0;
@@ -33,9 +30,6 @@ namespace dhtpp {
 		virtual void SendStoreResponse(const StoreResponse &resp) = 0;
 		virtual void SendFindNodeResponse(const FindNodeResponse &resp) = 0;
 		virtual void SendFindValueResponse(const FindValueResponse &resp) = 0;
-
-	protected:
-		INode *node;
 	};
 
 }

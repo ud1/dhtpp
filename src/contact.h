@@ -16,8 +16,16 @@ namespace dhtpp {
 			return *this;
 		}
 
-		bool operator != (const NodeAddress &o) {
+		bool operator != (const NodeAddress &o) const {
 			return (ip != o.ip) || (port != o.port);
+		}
+
+		bool operator < (const NodeAddress &o) const {
+			if (ip < o.ip)
+				return true;
+			if (ip > o.ip)
+				return false;
+			return port < o.port;
 		}
 	};
 

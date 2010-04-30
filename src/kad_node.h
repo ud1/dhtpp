@@ -18,6 +18,10 @@ namespace dhtpp {
 	public:
 		CKadNode(const NodeID &id, CJobScheduler *sched);
 
+		const NodeInfo &GetNodeInfo() const {
+			return my_info;
+		}
+
 		void OnPingRequest(const PingRequest &req);
 		void OnStoreRequest(const StoreRequest &req);
 		void OnFindNodeRequest(const FindNodeRequest &req);
