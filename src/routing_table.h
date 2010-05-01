@@ -14,6 +14,7 @@ namespace dhtpp {
 		CRoutingTable(const NodeID &id);
 		bool AddContact(const Contact &contact);
 		void GetClosestContacts(const NodeID &id, std::vector<NodeInfo> &out_contacts);
+		void SaveBootstrapContacts(std::vector<NodeAddress> &out) const;
 
 	protected:
 		class CKbucketEntry : 

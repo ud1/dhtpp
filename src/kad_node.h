@@ -8,6 +8,7 @@
 #include "job_scheduler.h"
 
 #include <set>
+#include <vector>
 
 #include <boost/function.hpp>
 #include <boost/intrusive/set.hpp>
@@ -21,6 +22,9 @@ namespace dhtpp {
 		const NodeInfo &GetNodeInfo() const {
 			return my_info;
 		}
+
+		void Terminate();
+		void SaveBootstrapContacts(std::vector<NodeAddress> &out) const;
 
 		void OnPingRequest(const PingRequest &req);
 		void OnStoreRequest(const StoreRequest &req);
@@ -42,10 +46,14 @@ namespace dhtpp {
 		typedef boost::function<void (ErrorCode code, const FindNodeResponse *resp)> find_node_callback;
 		typedef boost::function<void (ErrorCode code, const FindValueResponse *resp)> find_value_callback;
 
+		typedef boost::function<void (ErrorCode code)> join_callback;
+
 		rpc_id Ping(const NodeAddress &to, const ping_callback &callback);
 		rpc_id Store(const NodeID &key, const std::string &value, const store_callback &callback);
 		rpc_id FindCloseNodes(const NodeID &id, const find_node_callback &callback);
 		rpc_id FindValue(const NodeID &key, const find_value_callback &callback);
+
+		void JoinNetwork(const std::vector<NodeAddress> &bootstrap_contacts, const join_callback &callback);
 
 	protected:
 		ITransport *transport;
@@ -180,6 +188,18 @@ namespace dhtpp {
 		void DoStore(StoreRequestData *data, ErrorCode code, const FindNodeResponse *resp);
 		void StoreRequestTimeout(StoreRequestData *data, StoreRequestData::StoreNode *node);
 		void FinishStore(StoreRequestData *data);
+
+		// Bootstrap
+		std::vector<NodeAddress> join_bootstrap_contacts;
+		join_callback join_callback_;
+		int join_pinging_nodesN, join_succeedN;
+		void Join_PingCallback(ErrorCode code, rpc_id id);
+		void Join_FindNodeCallback(bool try_again, ErrorCode code, const FindNodeResponse *resp);
+		enum {
+			NOT_JOINED,
+			FIND_NODES_STARTED,
+			JOINED,
+		} join_state;
 	};
 }
 

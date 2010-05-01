@@ -42,6 +42,16 @@ namespace dhtpp {
 		CJobScheduler *scheduler;
 
 	};
+
+	class CSimulator {
+	public:
+		CSimulator(int nodesN);
+		void Run(uint64 until);
+
+	protected:
+		CTransport transport;
+		CJobScheduler scheduler;
+	};
 }
 
 #endif // DHT_SIMULATOR_H

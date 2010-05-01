@@ -9,6 +9,9 @@ namespace dhtpp {
 	CKadNode::CKadNode(const NodeID &id, CJobScheduler *sched) : routing_table(id) {
 		scheduler = sched;
 		ping_id_counter = store_id_counter = find_id_counter = 0;
+		join_pinging_nodesN = 0;
+		join_succeedN = 0;
+		join_state = NOT_JOINED;
 	}
 
 	void CKadNode::OnPingRequest(const PingRequest &req) {
@@ -414,6 +417,60 @@ namespace dhtpp {
 		}
 		if (!data->store_nodes.size())
 			FinishStore(data);
+	}
+
+	void CKadNode::Terminate() {
+		
+	}
+
+	void CKadNode::SaveBootstrapContacts(std::vector<NodeAddress> &out) const {
+		routing_table.SaveBootstrapContacts(out);
+	}
+
+	void CKadNode::JoinNetwork(const std::vector<NodeAddress> &bootstrap_contacts, const join_callback &callback) {
+		std::copy(bootstrap_contacts.begin(), bootstrap_contacts.end(), std::back_inserter(join_bootstrap_contacts));
+		join_callback_ = callback;
+		for ( ;join_pinging_nodesN < alpha && join_bootstrap_contacts.size(); ++join_pinging_nodesN) {
+			Ping(bootstrap_contacts[join_bootstrap_contacts.size()-1], 
+				boost::bind(&CKadNode::Join_PingCallback, this, boost::lambda::_1, boost::lambda::_2));
+			join_bootstrap_contacts.pop_back();
+		}
+	}
+
+	void CKadNode::Join_PingCallback(ErrorCode code, rpc_id id) {
+		--join_pinging_nodesN;
+		if (code == SUCCEED)
+			++join_succeedN;
+
+		if (join_state == NOT_JOINED && (join_succeedN >= K || !join_bootstrap_contacts.size())) {
+			join_state = FIND_NODES_STARTED;
+			FindCloseNodes(my_info.GetId(), 
+				boost::bind(&CKadNode::Join_FindNodeCallback, this, 
+				join_bootstrap_contacts.size() > 0, boost::lambda::_1, boost::lambda::_2));
+		}
+
+		for ( ;join_pinging_nodesN < alpha && join_bootstrap_contacts.size(); ++join_pinging_nodesN) {
+			Ping(join_bootstrap_contacts[join_bootstrap_contacts.size()-1], 
+				boost::bind(&CKadNode::Join_PingCallback, this, boost::lambda::_1, boost::lambda::_2));
+			join_bootstrap_contacts.pop_back();
+		}
+	}
+
+	void CKadNode::Join_FindNodeCallback(bool try_again, ErrorCode code, const FindNodeResponse *resp) {
+		if (code == SUCCEED) {
+			join_state = JOINED;
+			join_callback_(SUCCEED);
+		} else {
+			join_state = NOT_JOINED;
+			if (try_again) {
+				join_state = FIND_NODES_STARTED;
+				FindCloseNodes(my_info.GetId(), 
+					boost::bind(&CKadNode::Join_FindNodeCallback, this, 
+					join_bootstrap_contacts.size() > 0, boost::lambda::_1, boost::lambda::_2));
+			} else {
+				join_callback_(FAILED);
+			}
+		}
 	}
 
 }

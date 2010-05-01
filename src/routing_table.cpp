@@ -105,7 +105,7 @@ namespace dhtpp {
 		std::sort(sorted_buckets.begin(), sorted_buckets.end(), distance_comp_le<Buck>(id));
 
 		// extract additional contacts
-		for (int i = 0; i < sorted_buckets.size(); ++i) {
+		for (std::vector<Buck>::size_type i = 0; i < sorted_buckets.size(); ++i) {
 			sorted_buckets[i].entry->GetContacts(additional_contacts);
 			if (additional_contacts.size() >= contacts_needed)
 				break;
@@ -123,4 +123,16 @@ namespace dhtpp {
 		// copy contacts with smallest distance
 		std::copy(additional_contacts.begin(), additional_contacts.begin() + contacts_needed, std::back_inserter(out_contacts));
 	}
+
+	void CRoutingTable::SaveBootstrapContacts(std::vector<NodeAddress> &out) const {
+		Buckets::const_iterator it;
+		for (it = buckets.begin(); it != buckets.end(); ++it) {
+			std::vector<NodeInfo> contacts;
+			it->GetContacts(contacts);
+			for (std::vector<NodeInfo>::size_type i = 0; i < contacts.size(); ++i) {
+				out.push_back(contacts[i]);
+			}
+		}
+	}
+
 }
