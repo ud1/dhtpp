@@ -24,7 +24,7 @@ namespace dhtpp {
 	}
 
 	void CKadNode::OnStoreRequest(const StoreRequest &req) {
-		store.StoreItem(req.key, req.value);
+		store.StoreItem(req.key, req.value, req.time_to_live);
 
 		StoreResponse resp;
 		resp.Init(my_info, req.from, my_info.GetId());
@@ -337,11 +337,12 @@ namespace dhtpp {
 		delete data;
 	}
 
-	rpc_id CKadNode::Store(const NodeID &key, const std::string &value, const store_callback &callback) {
+	rpc_id CKadNode::Store(const NodeID &key, const std::string &value, uint64 time_to_live, const store_callback &callback) {
 		StoreRequestData *data = new StoreRequestData;
 		data->key = key;
 		data->value = value;
 		data->callback = callback;
+		data->time_to_live = time_to_live;
 		data->id = FindCloseNodes(key, boost::bind(&CKadNode::DoStore, this, data, boost::lambda::_1, boost::lambda::_2));
 		return data->id;
 	}
@@ -359,6 +360,7 @@ namespace dhtpp {
 		StoreRequest req;
 		req.key = data->key;
 		req.value = data->value;
+		req.time_to_live = data->time_to_live;
 
 		std::vector<NodeInfo>::const_iterator it;
 		for (it = resp->nodes.begin(); it != resp->nodes.end(); ++it) {

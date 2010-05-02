@@ -49,7 +49,7 @@ namespace dhtpp {
 		typedef boost::function<void (ErrorCode code)> join_callback;
 
 		rpc_id Ping(const NodeAddress &to, const ping_callback &callback);
-		rpc_id Store(const NodeID &key, const std::string &value, const store_callback &callback);
+		rpc_id Store(const NodeID &key, const std::string &value, uint64 time_to_live, const store_callback &callback);
 		rpc_id FindCloseNodes(const NodeID &id, const find_node_callback &callback);
 		rpc_id FindValue(const NodeID &key, const find_value_callback &callback);
 
@@ -129,6 +129,7 @@ namespace dhtpp {
 		};
 
 		struct StoreRequestData {
+			uint64 time_to_live;
 			NodeID key;
 			std::string value;
 			rpc_id id;

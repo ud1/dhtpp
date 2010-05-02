@@ -65,6 +65,7 @@ namespace dhtpp {
 	typedef RPCResponse PingResponse;
 
 	struct StoreRequest : public RPCRequest {
+		uint64 time_to_live;
 		NodeID key;
 		std::string value;
 
@@ -77,6 +78,7 @@ namespace dhtpp {
 			*(RPCRequest *)this = o;
 			key = o.key;
 			value = o.value;
+			time_to_live = o.time_to_live;
 			return *this;
 		}
 	};
