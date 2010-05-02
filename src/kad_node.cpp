@@ -17,6 +17,10 @@ namespace dhtpp {
 		store = new CStore;
 	}
 
+	CKadNode::~CKadNode() {
+		Terminate();
+	}
+
 	void CKadNode::OnPingRequest(const PingRequest &req) {
 		PingResponse resp;
 		resp.Init(my_info, req.from, my_info.GetId());
@@ -166,12 +170,17 @@ namespace dhtpp {
 		// Cancel timeout
 		scheduler->CancelJobsByOwner(cand);
 
+		if (cand->type == FindRequestData::Candidate::PENDING)
+			data->pending_nodes--;
+
 		cand->type = FindRequestData::Candidate::UP;
 		
 		// update contacts
 		data->Update(resp.nodes);
 
-		if (!SendFindRequestToOneNode(data)) {
+		while (data->pending_nodes < alpha && !SendFindRequestToOneNode(data));
+
+		if (!data->pending_nodes) {
 			CallFindNodeCallback(data);
 			FinishSearch(data);
 		}
@@ -192,6 +201,9 @@ namespace dhtpp {
 		// Cancel timeout
 		scheduler->CancelJobsByOwner(cand);
 
+		if (cand->type == FindRequestData::Candidate::PENDING)
+			data->pending_nodes--;
+
 		cand->type = FindRequestData::Candidate::UP;
 
 		if (resp.values.size()) {
@@ -203,7 +215,9 @@ namespace dhtpp {
 		// update contacts
 		data->Update(resp.nodes);
 
-		if (!SendFindRequestToOneNode(data)) {
+		while (data->pending_nodes < alpha && !SendFindRequestToOneNode(data));
+
+		if (!data->pending_nodes) {
 			data->find_value_callback_(FAILED, NULL);
 			FinishSearch(data);
 		}
@@ -256,12 +270,17 @@ namespace dhtpp {
 
 	void CKadNode::FindRequestTimeout(FindRequestData *data, FindRequestData::Candidate *cand) {
 		if (cand->attempts++ < attempts_number) {
-			// try again
-			SendFindRequestToOneNode(data, cand);
+			// this node can be requested again
+			cand->type = FindRequestData::Candidate::UNKNOWN;
 		} else {
 			cand->type = FindRequestData::Candidate::DOWN;
 		}
-		if (!SendFindRequestToOneNode(data)) {
+
+		data->pending_nodes--;
+
+		while (data->pending_nodes < alpha && !SendFindRequestToOneNode(data));
+
+		if (!data->pending_nodes) {
 			if (data->type == FindRequestData::FIND_NODE)
 				CallFindNodeCallback(data);
 			else data->find_value_callback_(FAILED, NULL);
@@ -270,21 +289,21 @@ namespace dhtpp {
 	}
 
 	bool CKadNode::SendFindRequestToOneNode(FindRequestData *data) {
-		bool pending_nodes = false;
 		FindRequestData::Candidates::iterator it;
 		int up_count = 0;
 		for (it = data->candidates.begin(); it != data->candidates.end() && up_count < K; ++it) {
 			FindRequestData::Candidate *cand = &*it;
-			if (cand->type == FindRequestData::Candidate::PENDING)
-				pending_nodes = true;
 			if (cand->type == FindRequestData::Candidate::UP)
 				++up_count;
 			if (cand->type != FindRequestData::Candidate::UNKNOWN)
 				continue;
+			if (*cand == my_info)
+				continue;
 			SendFindRequestToOneNode(data, cand);
+			data->pending_nodes++;
 			return true;
 		}
-		return pending_nodes;
+		return false;
 	}
 
 	void CKadNode::SendFindRequestToOneNode(FindRequestData *data, FindRequestData::Candidate *cand) {
@@ -450,10 +469,6 @@ namespace dhtpp {
 			FinishStore(data);
 	}
 
-	void CKadNode::Terminate() {
-		
-	}
-
 	void CKadNode::SaveBootstrapContacts(std::vector<NodeAddress> &out) const {
 		routing_table.SaveBootstrapContacts(out);
 	}
@@ -501,6 +516,57 @@ namespace dhtpp {
 			} else {
 				join_callback_(FAILED);
 			}
+		}
+	}
+
+	void CKadNode::Terminate() {
+		TerminatePingRequests();
+		TerminateFindRequests();
+		TerminateStoreRequests();
+	}
+
+	void CKadNode::TerminatePingRequests() {
+		PingRequests::iterator it;
+		for (it == ping_requests.begin(); it != ping_requests.end(); ) {
+			PingRequestData *data = *it;
+			scheduler->CancelJobsByOwner(data);
+			data->callback(FAILED, data->GetId());
+			it = ping_requests.erase(it);
+			delete data;
+		}
+	}
+
+	void CKadNode::TerminateFindRequests() {
+		FindRequests::iterator it;
+		for (it = find_requests.begin(); it != find_requests.end(); ) {
+			FindRequestData *data = *it;
+			FindRequestData::Candidates::iterator cit;
+			for (cit = data->candidates.begin(); cit != data->candidates.end();) {
+				FindRequestData::Candidate *cand = &*cit;
+				if (cand->type == FindRequestData::Candidate::PENDING) {
+					scheduler->CancelJobsByOwner(cand);
+				}
+				cit = data->candidates.erase(cit);
+				delete cand;
+			}
+			it = find_requests.erase(it);
+			delete data;
+		}
+	}
+
+	void CKadNode::TerminateStoreRequests() {
+		StoreRequests::iterator it;
+		for (it = store_requests.begin(); it != store_requests.end(); ) {
+			StoreRequestData *data = *it;
+			std::set<StoreRequestData::StoreNode *>::iterator sit;
+			for (sit = data->store_nodes.begin(); sit != data->store_nodes.end(); ) {
+				StoreRequestData::StoreNode *node = *sit;
+				scheduler->CancelJobsByOwner(node);
+				sit = data->store_nodes.erase(sit);
+				delete node;
+			}
+			it = store_requests.erase(it);
+			delete data;
 		}
 	}
 

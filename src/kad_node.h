@@ -18,6 +18,7 @@ namespace dhtpp {
 	class CKadNode : public INode {
 	public:
 		CKadNode(const NodeInfo &info, CJobScheduler *sched);
+		~CKadNode();
 
 		const NodeInfo &GetNodeInfo() const {
 			return my_info;
@@ -76,6 +77,9 @@ namespace dhtpp {
 		};
 
 		struct FindRequestData {
+			FindRequestData() {
+				pending_nodes = 0;
+			}
 			rpc_id id;
 			rpc_id GetId() const {
 				return id;
@@ -124,6 +128,7 @@ namespace dhtpp {
 
 			typedef boost::intrusive::set<Candidate> Candidates;
 			Candidates candidates;
+			int pending_nodes;
 
 			Candidate *GetCandidate(const NodeID &id);
 			void Update(const std::vector<NodeInfo> &nodes);
@@ -204,6 +209,10 @@ namespace dhtpp {
 			FIND_NODES_STARTED,
 			JOINED,
 		} join_state;
+
+		void TerminatePingRequests();
+		void TerminateFindRequests();
+		void TerminateStoreRequests();
 	};
 }
 
