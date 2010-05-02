@@ -6,8 +6,9 @@
 
 namespace dhtpp {
 
-	CKadNode::CKadNode(const NodeID &id, CJobScheduler *sched) : routing_table(id) {
+	CKadNode::CKadNode(const NodeInfo &info, CJobScheduler *sched) : routing_table(info.id) {
 		scheduler = sched;
+		my_info = info;
 		ping_id_counter = store_id_counter = find_id_counter = 0;
 		join_pinging_nodesN = 0;
 		join_succeedN = 0;

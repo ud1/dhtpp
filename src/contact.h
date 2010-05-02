@@ -20,6 +20,10 @@ namespace dhtpp {
 			return (ip != o.ip) || (port != o.port);
 		}
 
+		bool operator == (const NodeAddress &o) const {
+			return (ip == o.ip) && (port == o.port);
+		}
+
 		bool operator < (const NodeAddress &o) const {
 			if (ip < o.ip)
 				return true;

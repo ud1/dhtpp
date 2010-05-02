@@ -3,8 +3,12 @@
 
 #include "transport.h"
 #include "job_scheduler.h"
+#include "kad_node.h"
 
 #include <map>
+#include <vector>
+
+class StochasticLib2;
 
 #define DECLARE_RPC_METHOD(name) \
 	public: \
@@ -51,6 +55,20 @@ namespace dhtpp {
 	protected:
 		CTransport transport;
 		CJobScheduler scheduler;
+		CKadNode *supernode; // is always running
+		StochasticLib2 *random_lib;
+		double avg_on_time, avg_off_time;
+
+		struct InactiveNode {
+			NodeInfo info;
+			std::vector<NodeAddress> bootstrap_contacts;
+		};
+
+		void ActivateNode(InactiveNode *nd);
+		void DeactivateNode(CKadNode *node);
+		void StartNodeLoop(CKadNode *node, CKadNode::ErrorCode code);
+		uint64 GenerateRandomOnTime();
+		uint64 GenerateRandomOffTime();
 	};
 }
 
