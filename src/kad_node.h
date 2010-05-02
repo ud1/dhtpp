@@ -3,7 +3,6 @@
 
 #include "transport.h"
 #include "routing_table.h"
-#include "store.h"
 #include "types.h"
 #include "job_scheduler.h"
 
@@ -15,6 +14,7 @@
 
 namespace dhtpp {
 
+	class CStore;
 	class CKadNode : public INode {
 	public:
 		CKadNode(const NodeInfo &info, CJobScheduler *sched);
@@ -42,7 +42,7 @@ namespace dhtpp {
 		};
 
 		typedef boost::function<void (ErrorCode code, rpc_id id)> ping_callback;
-		typedef boost::function<void (ErrorCode code, rpc_id id)> store_callback;
+		typedef boost::function<void (ErrorCode code, rpc_id id, const BigInt *max_distance)> store_callback;
 		typedef boost::function<void (ErrorCode code, const FindNodeResponse *resp)> find_node_callback;
 		typedef boost::function<void (ErrorCode code, const FindValueResponse *resp)> find_value_callback;
 
@@ -50,6 +50,7 @@ namespace dhtpp {
 
 		rpc_id Ping(const NodeAddress &to, const ping_callback &callback);
 		rpc_id Store(const NodeID &key, const std::string &value, uint64 time_to_live, const store_callback &callback);
+		rpc_id StoreToNode(const NodeInfo &to_node, const NodeID &key, const std::string &value, uint64 time_to_live, const store_callback &callback);
 		rpc_id FindCloseNodes(const NodeID &id, const find_node_callback &callback);
 		rpc_id FindValue(const NodeID &key, const find_value_callback &callback);
 
@@ -59,7 +60,7 @@ namespace dhtpp {
 		ITransport *transport;
 		NodeInfo my_info;
 		CRoutingTable routing_table;
-		CStore store;
+		CStore *store;
 		CJobScheduler *scheduler;
 
 		struct PingRequestData {
@@ -136,6 +137,8 @@ namespace dhtpp {
 			store_callback callback;
 			uint16 succeded;
 
+			BigInt max_distance;
+
 			StoreRequestData() {
 				succeded = 0;
 			}
@@ -186,7 +189,7 @@ namespace dhtpp {
 		void FinishSearch(FindRequestData *data);
 		FindRequestData *GetFindData(rpc_id id);
 
-		void DoStore(StoreRequestData *data, ErrorCode code, const FindNodeResponse *resp);
+		void DoStore(StoreRequestData *data, bool single, ErrorCode code, const FindNodeResponse *resp);
 		void StoreRequestTimeout(StoreRequestData *data, StoreRequestData::StoreNode *node);
 		void FinishStore(StoreRequestData *data);
 

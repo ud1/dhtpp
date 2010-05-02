@@ -3,6 +3,7 @@
 #include "kad_node.h"
 
 #include <boost/bind.hpp>
+#include <boost/lambda/lambda.hpp>
 #include <boost/math/special_functions/beta.hpp>
 
 #include <algorithm>
@@ -31,6 +32,7 @@ namespace dhtpp {
 			item->expiration_time = cur_time + time_to_live;
 			store.insert(std::make_pair(key, item));
 		}
+		item->max_distance_setted = false;
 		scheduler->AddJob_(GetRandomRepublishTime(), 
 			boost::bind(&CStore::RepublishItem, this, key, item), item);
 		scheduler->AddJob_(item->expiration_time - cur_time, 
@@ -46,11 +48,27 @@ namespace dhtpp {
 		}
 	}
 
+	void CStore::OnNewContact(const NodeInfo &contact) {
+		uint64 cur_time = GetTimerInstance()->GetCurrentTime();
+		Store::iterator it;
+		for (it = store.begin(); it != store.end(); ++it) {
+			Item *item = it->second;
+			BigInt distance = (BigInt)it->first ^ (BigInt) contact.id;
+			if (item->max_distance_setted && item->max_distance > distance) {
+				node->StoreToNode(contact, it->first, item->value, item->expiration_time - cur_time,
+					boost::bind(&CStore::StoreCallback, this, item,
+					boost::lambda::_1, boost::lambda::_2, boost::lambda::_3));
+			}
+		}
+	}
+
 	void CStore::RepublishItem(NodeID key, Item *item) {
 		uint64 cur_time = GetTimerInstance()->GetCurrentTime();
 		if (cur_time >= item->expiration_time)
 			return;
-		node->Store(key, item->value, item->expiration_time - cur_time, CKadNode::store_callback());
+		node->Store(key, item->value, item->expiration_time - cur_time, 
+			boost::bind(&CStore::StoreCallback, this, item,
+			boost::lambda::_1, boost::lambda::_2, boost::lambda::_3));
 		scheduler->AddJob_(GetRandomRepublishTime(), 
 			boost::bind(&CStore::RepublishItem, this, key, item), item);
 	}
@@ -67,6 +85,13 @@ namespace dhtpp {
 				delete item;
 				return;
 			}
+		}
+	}
+
+	void CStore::StoreCallback(Item *item, CKadNode::ErrorCode code, rpc_id id, const BigInt *max_distance) {
+		if (code == CKadNode::SUCCEED) {
+			item->max_distance_setted = true;
+			item->max_distance = *max_distance;
 		}
 	}
 

@@ -1,5 +1,6 @@
 #include "kad_node.h"
 #include "timer.h"
+#include "store.h"
 
 #include <boost/bind.hpp>
 #include <boost/lambda/lambda.hpp>
@@ -13,6 +14,7 @@ namespace dhtpp {
 		join_pinging_nodesN = 0;
 		join_succeedN = 0;
 		join_state = NOT_JOINED;
+		store = new CStore;
 	}
 
 	void CKadNode::OnPingRequest(const PingRequest &req) {
@@ -24,7 +26,7 @@ namespace dhtpp {
 	}
 
 	void CKadNode::OnStoreRequest(const StoreRequest &req) {
-		store.StoreItem(req.key, req.value, req.time_to_live);
+		store->StoreItem(req.key, req.value, req.time_to_live);
 
 		StoreResponse resp;
 		resp.Init(my_info, req.from, my_info.GetId());
@@ -45,7 +47,7 @@ namespace dhtpp {
 	void CKadNode::OnFindValueRequest(const FindValueRequest &req) {
 		FindValueResponse resp;
 		resp.Init(my_info, req.from, my_info.GetId());
-		store.GetItems(req.key, resp.values);
+		store->GetItems(req.key, resp.values);
 		if (!resp.values.size()) {
 			routing_table.GetClosestContacts(req.key, resp.nodes);
 		}
@@ -59,7 +61,9 @@ namespace dhtpp {
 		contact.id = req.sender_id;
 		(NodeAddress) contact = req.from;
 		contact.last_seen = GetTimerInstance()->GetCurrentTime();
-		routing_table.AddContact(contact);
+		if (routing_table.AddContact(contact)) {
+			store->OnNewContact(contact);
+		}
 	}
 
 	void CKadNode::UpdateRoutingTable(const RPCResponse &resp) {
@@ -67,7 +71,9 @@ namespace dhtpp {
 		contact.id = resp.responder_id;
 		(NodeAddress) contact = resp.from;
 		contact.last_seen = GetTimerInstance()->GetCurrentTime();
-		routing_table.AddContact(contact);
+		if (routing_table.AddContact(contact)) {
+			store->OnNewContact(contact);
+		}
 	}
 
 	void CKadNode::OnPingResponse(const PingResponse &resp) {
@@ -343,13 +349,27 @@ namespace dhtpp {
 		data->value = value;
 		data->callback = callback;
 		data->time_to_live = time_to_live;
-		data->id = FindCloseNodes(key, boost::bind(&CKadNode::DoStore, this, data, boost::lambda::_1, boost::lambda::_2));
+		data->id = store_id_counter++;
+		FindCloseNodes(key, boost::bind(&CKadNode::DoStore, this, data, false, boost::lambda::_1, boost::lambda::_2));
 		return data->id;
 	}
 
-	void CKadNode::DoStore(StoreRequestData *data, ErrorCode code, const FindNodeResponse *resp) {
+	rpc_id CKadNode::StoreToNode(const NodeInfo &to_node, const NodeID &key, const std::string &value, uint64 time_to_live, const store_callback &callback) {
+		StoreRequestData *data = new StoreRequestData;
+		data->key = key;
+		data->value = value;
+		data->callback = callback;
+		data->time_to_live = time_to_live;
+		data->id = store_id_counter++;
+		FindNodeResponse resp;
+		resp.nodes.push_back(to_node);
+		DoStore(data, true, SUCCEED, &resp);
+		return data->id;
+	}
+
+	void CKadNode::DoStore(StoreRequestData *data, bool single, ErrorCode code, const FindNodeResponse *resp) {
 		if (code == FAILED) {
-			data->callback(FAILED, data->id);
+			data->callback(FAILED, data->id, NULL);
 			delete data;
 			return;
 		}
@@ -364,12 +384,20 @@ namespace dhtpp {
 
 		std::vector<NodeInfo>::const_iterator it;
 		for (it = resp->nodes.begin(); it != resp->nodes.end(); ++it) {
+			if (*it == my_info) // do not send store to yourself
+				continue;
 			StoreRequestData::StoreNode *node = new StoreRequestData::StoreNode;
 			*(NodeInfo *)node = *it;
 			data->store_nodes.insert(node);
 			req.Init(my_info, *(NodeAddress *)node, my_info.GetId(), data->id);
 			transport->SendStoreRequest(req);
 			scheduler->AddJob_(timeout_period, boost::bind(&CKadNode::StoreRequestTimeout, this, data, node), node);
+		}
+
+		if (!single && resp->nodes.size() < K) {
+			data->max_distance = (BigInt) MaxNodeID();
+		} else {
+			data->max_distance = (BigInt) resp->nodes[resp->nodes.size()-1].id ^ (BigInt) data->key;
 		}
 	}
 
@@ -392,8 +420,8 @@ namespace dhtpp {
 
 	void CKadNode::FinishStore(StoreRequestData *data) {
 		if (data->succeded > 0)
-			data->callback(SUCCEED, data->id);
-		else data->callback(FAILED, data->id);
+			data->callback(SUCCEED, data->id, &data->max_distance);
+		else data->callback(FAILED, data->id, NULL);
 
 		store_requests.erase(data);
 

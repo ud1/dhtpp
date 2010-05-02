@@ -45,6 +45,14 @@ namespace dhtpp {
 		}
 		return true;
 	}
+
+	struct MaxNodeID : public NodeID {
+		MaxNodeID() {
+			for (int i = 0; i < NODE_ID_LENGTH_BYTES; ++i) {
+				id[i] = 255;
+			}
+		}
+	};
 }
 
 #endif // DHT_NODE_ID_H
