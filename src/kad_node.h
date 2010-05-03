@@ -17,7 +17,7 @@ namespace dhtpp {
 	class CStore;
 	class CKadNode : public INode {
 	public:
-		CKadNode(const NodeInfo &info, CJobScheduler *sched);
+		CKadNode(const NodeInfo &info, CJobScheduler *sched, ITransport *transport);
 		~CKadNode();
 
 		const NodeInfo &GetNodeInfo() const {

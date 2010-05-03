@@ -17,10 +17,11 @@ namespace dhtpp {
 		CJobScheduler();
 		~CJobScheduler();
 
-		void AddJob_(uint64 t, const Job &f, const void *owner);
-		void AddJob_(int milliseconds, const Job &f, const void *owner);
+		void AddJobAt(uint64 t, const Job &f, const void *owner);
+		void AddJob_(uint64 milliseconds, const Job &f, const void *owner);
 		void CancelJobsByOwner(const void *owner);
 		void Run();
+		void Stop();
 
 	protected:
 		CSemaphore semaphore;

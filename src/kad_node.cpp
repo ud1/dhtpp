@@ -7,8 +7,9 @@
 
 namespace dhtpp {
 
-	CKadNode::CKadNode(const NodeInfo &info, CJobScheduler *sched) : routing_table(info.id) {
+	CKadNode::CKadNode(const NodeInfo &info, CJobScheduler *sched, ITransport *tr) : routing_table(info.id) {
 		scheduler = sched;
+		transport = tr;
 		my_info = info;
 		ping_id_counter = store_id_counter = find_id_counter = 0;
 		join_pinging_nodesN = 0;
@@ -23,7 +24,7 @@ namespace dhtpp {
 
 	void CKadNode::OnPingRequest(const PingRequest &req) {
 		PingResponse resp;
-		resp.Init(my_info, req.from, my_info.GetId());
+		resp.Init(my_info, req.from, my_info.GetId(), req.id);
 		transport->SendPingResponse(resp);
 
 		UpdateRoutingTable(req);
@@ -33,7 +34,7 @@ namespace dhtpp {
 		store->StoreItem(req.key, req.value, req.time_to_live);
 
 		StoreResponse resp;
-		resp.Init(my_info, req.from, my_info.GetId());
+		resp.Init(my_info, req.from, my_info.GetId(), req.id);
 		transport->SendStoreResponse(resp);
 
 		UpdateRoutingTable(req);
@@ -41,7 +42,7 @@ namespace dhtpp {
 
 	void CKadNode::OnFindNodeRequest(const FindNodeRequest &req) {
 		FindNodeResponse resp;
-		resp.Init(my_info, req.from, my_info.GetId());
+		resp.Init(my_info, req.from, my_info.GetId(), req.id);
 		routing_table.GetClosestContacts(req.target, resp.nodes);
 		transport->SendFindNodeResponse(resp);
 
@@ -50,7 +51,7 @@ namespace dhtpp {
 
 	void CKadNode::OnFindValueRequest(const FindValueRequest &req) {
 		FindValueResponse resp;
-		resp.Init(my_info, req.from, my_info.GetId());
+		resp.Init(my_info, req.from, my_info.GetId(), req.id);
 		store->GetItems(req.key, resp.values);
 		if (!resp.values.size()) {
 			routing_table.GetClosestContacts(req.key, resp.nodes);
@@ -63,7 +64,7 @@ namespace dhtpp {
 	void CKadNode::UpdateRoutingTable(const RPCRequest &req) {
 		Contact contact;
 		contact.id = req.sender_id;
-		(NodeAddress) contact = req.from;
+		(NodeAddress &) contact = req.from;
 		contact.last_seen = GetTimerInstance()->GetCurrentTime();
 		if (routing_table.AddContact(contact)) {
 			store->OnNewContact(contact);
@@ -73,7 +74,7 @@ namespace dhtpp {
 	void CKadNode::UpdateRoutingTable(const RPCResponse &resp) {
 		Contact contact;
 		contact.id = resp.responder_id;
-		(NodeAddress) contact = resp.from;
+		(NodeAddress &) contact = resp.from;
 		contact.last_seen = GetTimerInstance()->GetCurrentTime();
 		if (routing_table.AddContact(contact)) {
 			store->OnNewContact(contact);

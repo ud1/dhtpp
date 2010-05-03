@@ -24,6 +24,7 @@ namespace dhtpp {
 
 	class CTransport : public ITransport {
 	public:
+		CTransport(CJobScheduler *scheduler);
 		bool AddNode(INode *node);
 		bool RemoveNode(INode *node);
 
@@ -50,10 +51,10 @@ namespace dhtpp {
 	class CSimulator {
 	public:
 		CSimulator(int nodesN);
-		void Run(uint64 until);
+		void Run(uint64 period);
 
 	protected:
-		CTransport transport;
+		CTransport *transport;
 		CJobScheduler scheduler;
 		CKadNode *supernode; // is always running
 		StochasticLib2 *random_lib;

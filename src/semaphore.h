@@ -12,7 +12,7 @@ namespace dhtpp {
 
 		bool Wait() {
 			// this semaphore cannot wait really
-			assert(count > 0);
+			//assert(count > 0);
 			--count;
 			return true;
 		}

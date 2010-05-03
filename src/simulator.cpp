@@ -32,6 +32,10 @@
 
 namespace dhtpp {
 
+	CTransport::CTransport(CJobScheduler *sched) {
+		scheduler = sched;
+	}
+
 	bool CTransport::AddNode(INode *node) {
 		return nodes.insert(std::make_pair((NodeAddress)node->GetNodeInfo(), node)).second;
 	}
@@ -59,6 +63,8 @@ namespace dhtpp {
 
 
 	CSimulator::CSimulator(int nodesN) {
+		transport = new CTransport(&scheduler);
+
 		int seed = 0;
 		random_lib = new StochasticLib2(seed);
 
@@ -71,8 +77,8 @@ namespace dhtpp {
 		info.ip = "supernode";
 		info.port = 5555;
 		sha.CalculateDigest(info.id.id, (const byte *)info.ip.c_str(), info.ip.size());
-		supernode = new CKadNode(info, &scheduler);
-		transport.AddNode(supernode);
+		supernode = new CKadNode(info, &scheduler, transport);
+		transport->AddNode(supernode);
 
 		int nodes_to_run = (int) (nodesN * avg_on_time / (avg_on_time + avg_off_time));
 		for (int i = 0; i < nodes_to_run; ++i) {
@@ -96,12 +102,12 @@ namespace dhtpp {
 	}
 
 	void CSimulator::ActivateNode(InactiveNode *nd) {
-		CKadNode *node = new CKadNode(nd->info, &scheduler);
+		CKadNode *node = new CKadNode(nd->info, &scheduler, transport);
 		node->JoinNetwork(nd->bootstrap_contacts,
 			boost::bind(&CSimulator::StartNodeLoop, this, node, boost::lambda::_1));
 		scheduler.AddJob_(GenerateRandomOnTime(),
 			boost::bind(&CSimulator::DeactivateNode, this, node), node);
-		transport.AddNode(node);
+		transport->AddNode(node);
 		delete nd;
 	}
 
@@ -112,7 +118,7 @@ namespace dhtpp {
 		scheduler.CancelJobsByOwner(node);
 		scheduler.AddJob_(GenerateRandomOffTime(),
 			boost::bind(&CSimulator::ActivateNode, this, nd), nd);
-		transport.RemoveNode(node);
+		transport->RemoveNode(node);
 		delete node;
 	}
 
@@ -126,4 +132,8 @@ namespace dhtpp {
 		return random_lib->Poisson(avg_off_time);
 	}
 
+	void CSimulator::Run(uint64 period) {
+		scheduler.AddJob_(period, boost::bind(&CJobScheduler::Stop, &scheduler), &scheduler);
+		scheduler.Run();
+	}
 }

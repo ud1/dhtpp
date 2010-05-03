@@ -6,7 +6,7 @@ namespace dhtpp {
 	class CVirtualMutex {
 	public:
 		CVirtualMutex() {
-			times_unlock = 0;
+			times_unlock = 1;
 		}
 
 		void Lock() {

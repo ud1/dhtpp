@@ -43,10 +43,11 @@ namespace dhtpp {
 
 	struct RPCResponse : public RPCMessage {
 		NodeID responder_id;
-		void Init(const NodeAddress &from_, const NodeAddress &to_, const NodeID &responder_id_) {
+		void Init(const NodeAddress &from_, const NodeAddress &to_, const NodeID &responder_id_, rpc_id rpc_id_) {
 			from = from_;
 			to = to_;
 			responder_id = responder_id_;
+			id = rpc_id_;
 		}
 
 		RPCResponse(){}
