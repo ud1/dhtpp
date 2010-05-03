@@ -179,7 +179,7 @@ namespace dhtpp {
 		// update contacts
 		data->Update(resp.nodes);
 
-		while (data->pending_nodes < alpha && !SendFindRequestToOneNode(data));
+		while (data->pending_nodes < alpha && SendFindRequestToOneNode(data));
 
 		if (!data->pending_nodes) {
 			CallFindNodeCallback(data);
@@ -216,7 +216,7 @@ namespace dhtpp {
 		// update contacts
 		data->Update(resp.nodes);
 
-		while (data->pending_nodes < alpha && !SendFindRequestToOneNode(data));
+		while (data->pending_nodes < alpha && SendFindRequestToOneNode(data));
 
 		if (!data->pending_nodes) {
 			data->find_value_callback_(FAILED, NULL);
@@ -279,7 +279,7 @@ namespace dhtpp {
 
 		data->pending_nodes--;
 
-		while (data->pending_nodes < alpha && !SendFindRequestToOneNode(data));
+		while (data->pending_nodes < alpha && SendFindRequestToOneNode(data));
 
 		if (!data->pending_nodes) {
 			if (data->type == FindRequestData::FIND_NODE)
@@ -490,6 +490,10 @@ namespace dhtpp {
 			++join_succeedN;
 
 		if (join_state == NOT_JOINED && (join_succeedN >= K || !join_bootstrap_contacts.size())) {
+			if (!join_succeedN) {
+				join_callback_(FAILED);
+				return;
+			}
 			join_state = FIND_NODES_STARTED;
 			FindCloseNodes(my_info.GetId(), 
 				boost::bind(&CKadNode::Join_FindNodeCallback, this, 
@@ -528,7 +532,7 @@ namespace dhtpp {
 
 	void CKadNode::TerminatePingRequests() {
 		PingRequests::iterator it;
-		for (it == ping_requests.begin(); it != ping_requests.end(); ) {
+		for (it = ping_requests.begin(); it != ping_requests.end(); ) {
 			PingRequestData *data = *it;
 			scheduler->CancelJobsByOwner(data);
 			data->callback(FAILED, data->GetId());

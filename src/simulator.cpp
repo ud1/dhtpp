@@ -1,4 +1,5 @@
 #include "simulator.h"
+#include "types.h"
 
 #include <stdlib.h>
 
@@ -9,6 +10,8 @@
 #include "../agner_random/stocc.h"
 
 #include <sha.h>
+
+#include <iterator>
 
 #define IMPLEMENT_RPC_METHOD(cl, name)														\
 	void cl::Send##name(const name &r) {													\
@@ -31,16 +34,18 @@
 
 
 namespace dhtpp {
+	const uint64 print_time_interval = 5000;
+	const uint64 check_node_time_interval = 5000;
 
 	CTransport::CTransport(CJobScheduler *sched) {
 		scheduler = sched;
 	}
 
-	bool CTransport::AddNode(INode *node) {
+	bool CTransport::AddNode(CKadNode *node) {
 		return nodes.insert(std::make_pair((NodeAddress)node->GetNodeInfo(), node)).second;
 	}
 
-	bool CTransport::RemoveNode(INode *node) {
+	bool CTransport::RemoveNode(CKadNode *node) {
 		return nodes.erase(node->GetNodeInfo()) > 0;
 	}
 
@@ -54,13 +59,22 @@ namespace dhtpp {
 	IMPLEMENT_RPC_METHOD(CTransport, FindNodeResponse)
 	IMPLEMENT_RPC_METHOD(CTransport, FindValueResponse)
 
-	INode *CTransport::GetNode(const NodeAddress &addr) {
+	CKadNode *CTransport::GetNode(const NodeAddress &addr) {
 		Nodes::iterator it = nodes.find(addr);
 		if (it == nodes.end())
 			return NULL;
 		return it->second;
 	}
 
+	CKadNode *CTransport::GetRandomNode() {
+		Nodes::size_type count = nodes.size();
+		if (!count)
+			return NULL;
+		Nodes::size_type pos = rand() * (count - 1) / RAND_MAX;
+		Nodes::iterator it = nodes.begin();
+		std::advance(it, pos);
+		return it->second;
+	}
 
 	CSimulator::CSimulator(int nodesN) {
 		transport = new CTransport(&scheduler);
@@ -69,7 +83,9 @@ namespace dhtpp {
 		random_lib = new StochasticLib2(seed);
 
 		avg_on_time		= 10*60*1000;
+		avg_on_time_delta = 120*1000;
 		avg_off_time	= 10*60*1000;
+		avg_off_time_delta = 120*1000;
 
 		CryptoPP::SHA1 sha;
 
@@ -122,18 +138,47 @@ namespace dhtpp {
 		delete node;
 	}
 
-	void CSimulator::StartNodeLoop(CKadNode *node, CKadNode::ErrorCode code) {}
+	void CSimulator::StartNodeLoop(CKadNode *node, CKadNode::ErrorCode code) {
+		if (code == CKadNode::FAILED) {
+			printf("node not joined\n");
+			return;
+		}
+	}
 
 	uint64 CSimulator::GenerateRandomOnTime() {
-		return random_lib->Poisson(avg_on_time);
+		return avg_on_time - avg_on_time_delta + 2*((double)rand()/RAND_MAX*avg_on_time_delta);
 	}
 
 	uint64 CSimulator::GenerateRandomOffTime() {
-		return random_lib->Poisson(avg_off_time);
+		return avg_off_time - avg_off_time_delta + 2*((double)rand()/RAND_MAX*avg_off_time_delta);
 	}
 
 	void CSimulator::Run(uint64 period) {
 		scheduler.AddJob_(period, boost::bind(&CJobScheduler::Stop, &scheduler), &scheduler);
+		scheduler.AddJob_(print_time_interval, boost::bind(&CSimulator::PrintTime, this), this);
+		scheduler.AddJob_(check_node_time_interval, boost::bind(&CSimulator::CheckRandomNode, this), this);
 		scheduler.Run();
+	}
+
+	void CSimulator::PrintTime() {
+		scheduler.AddJob_(print_time_interval, boost::bind(&CSimulator::PrintTime, this), this);
+		printf("time = %lld\n", GetTimerInstance()->GetCurrentTime());
+	}
+
+	void CSimulator::CheckRandomNode() {
+		scheduler.AddJob_(check_node_time_interval, boost::bind(&CSimulator::CheckRandomNode, this), this);
+		CKadNode *node = transport->GetRandomNode();
+		if (!node)
+			return;
+
+		std::vector<NodeAddress> addrs;
+		node->SaveBootstrapContacts(addrs);
+		int active = 0;
+		for (int i = 0; i < addrs.size(); ++i) {
+			if (transport->GetNode(addrs[i])) {
+				++active;
+			}
+		}
+		printf("CheckRandomNode: %d/%d\n", active, addrs.size());
 	}
 }

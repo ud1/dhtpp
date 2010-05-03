@@ -25,8 +25,8 @@ namespace dhtpp {
 	class CTransport : public ITransport {
 	public:
 		CTransport(CJobScheduler *scheduler);
-		bool AddNode(INode *node);
-		bool RemoveNode(INode *node);
+		bool AddNode(CKadNode *node);
+		bool RemoveNode(CKadNode *node);
 
 		DECLARE_RPC_METHOD(PingRequest)
 		DECLARE_RPC_METHOD(StoreRequest)
@@ -38,10 +38,12 @@ namespace dhtpp {
 		DECLARE_RPC_METHOD(FindNodeResponse)
 		DECLARE_RPC_METHOD(FindValueResponse)
 
-	private:
+	public:
+		CKadNode *GetRandomNode();
+		CKadNode *GetNode(const NodeAddress &addr);
 
-		INode *GetNode(const NodeAddress &addr);
-		typedef std::map<NodeAddress, INode *> Nodes;
+	private:
+		typedef std::map<NodeAddress, CKadNode *> Nodes;
 		Nodes nodes;
 
 		CJobScheduler *scheduler;
@@ -59,6 +61,7 @@ namespace dhtpp {
 		CKadNode *supernode; // is always running
 		StochasticLib2 *random_lib;
 		double avg_on_time, avg_off_time;
+		double avg_on_time_delta, avg_off_time_delta;
 
 		struct InactiveNode {
 			NodeInfo info;
@@ -70,6 +73,9 @@ namespace dhtpp {
 		void StartNodeLoop(CKadNode *node, CKadNode::ErrorCode code);
 		uint64 GenerateRandomOnTime();
 		uint64 GenerateRandomOffTime();
+
+		void PrintTime();
+		void CheckRandomNode();
 	};
 }
 

@@ -56,7 +56,6 @@ namespace dhtpp {
 						}
 						mutex.Unlock();
 					}
-					printf("time = %lld\n", GetTimerInstance()->GetCurrentTime());
 					if (job)
 						job(); // do job
 				} else {
