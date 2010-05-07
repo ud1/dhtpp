@@ -25,6 +25,7 @@ namespace dhtpp {
 		// count = K = number_of_contacts_in_the_holder_bucket
 		bool AddContactForceK(const Contact &contact, const NodeID &holder_id, uint16 count);
 		bool RemoveContact(const NodeID &id);
+		bool GetContact(const NodeID &id, NodeInfo &cont) const;
 		bool LastSeenContact(Contact &out) const;
 		void GetContacts(std::vector<NodeInfo> &out_contacts) const;
 		ErrorCode Split(CKbucket &first, CKbucket &second) const;
@@ -43,7 +44,7 @@ namespace dhtpp {
 
 	private:
 		struct Comp {
-			bool operator()(const Contact &c1, const Contact &c2) {
+			bool operator()(const Contact &c1, const Contact &c2) const {
 				return c1.GetId() < c2.GetId();
 			}
 		};

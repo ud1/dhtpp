@@ -12,11 +12,13 @@ namespace dhtpp {
 		virtual void OnStoreRequest(const StoreRequest &req) = 0;
 		virtual void OnFindNodeRequest(const FindNodeRequest &req) = 0;
 		virtual void OnFindValueRequest(const FindValueRequest &req) = 0;
+		virtual void OnDownlistRequest(const DownlistRequest &req) = 0;
 
 		virtual void OnPingResponse(const PingResponse &resp) = 0;
 		virtual void OnStoreResponse(const StoreResponse &resp) = 0;
 		virtual void OnFindNodeResponse(const FindNodeResponse &resp) = 0;
 		virtual void OnFindValueResponse(const FindValueResponse &resp) = 0;
+		virtual void OnDownlistResponse(const DownlistResponse &resp) = 0;
 	};
 
 	class ITransport {
@@ -25,11 +27,13 @@ namespace dhtpp {
 		virtual void SendStoreRequest(const StoreRequest &req) = 0;
 		virtual void SendFindNodeRequest(const FindNodeRequest &req) = 0;
 		virtual void SendFindValueRequest(const FindValueRequest &req) = 0;
+		virtual void SendDownlistRequest(const DownlistRequest &req) = 0;
 
 		virtual void SendPingResponse(const PingResponse &resp) = 0;
 		virtual void SendStoreResponse(const StoreResponse &resp) = 0;
 		virtual void SendFindNodeResponse(const FindNodeResponse &resp) = 0;
 		virtual void SendFindValueResponse(const FindValueResponse &resp) = 0;
+		virtual void SendDownlistResponse(const DownlistResponse &resp) = 0;
 	};
 
 }

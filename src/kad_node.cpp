@@ -11,7 +11,7 @@ namespace dhtpp {
 		scheduler = sched;
 		transport = tr;
 		my_info = info;
-		ping_id_counter = store_id_counter = find_id_counter = 0;
+		ping_id_counter = store_id_counter = find_id_counter = downlist_id_counter = 0;
 		join_pinging_nodesN = 0;
 		join_succeedN = 0;
 		join_state = NOT_JOINED;
@@ -57,6 +57,24 @@ namespace dhtpp {
 			routing_table.GetClosestContacts(req.key, resp.nodes);
 		}
 		transport->SendFindValueResponse(resp);
+
+		UpdateRoutingTable(req);
+	}
+
+	void CKadNode::OnDownlistRequest(const DownlistRequest &req) {
+		std::vector<NodeID>::const_iterator it;
+		for (it = req.down_nodes.begin(); it != req.down_nodes.end(); ++it) {
+			const NodeID &id = *it;
+			NodeInfo info;
+			if (routing_table.GetContact(id, info)) {
+				Ping(info, boost::bind(&CKadNode::DoRemoveContact, this,
+					id, boost::lambda::_1, boost::lambda::_2));
+			}
+		}
+
+		DownlistResponse resp;
+		resp.Init(my_info, req.from, my_info.GetId(), req.id);
+		transport->SendDownlistResponse(resp);
 
 		UpdateRoutingTable(req);
 	}
@@ -122,6 +140,29 @@ namespace dhtpp {
 			data->callback(FAILED, id);
 			delete data;
 		}
+	}
+
+	void CKadNode::OnDownlistResponse(const DownlistResponse &resp) {
+		UpdateRoutingTable(resp);
+		DownlistRequestData temp, *data;
+		temp.id = resp.id;
+		DownlistRequests::iterator it = downlist_requests.find(&temp);
+		if (it == downlist_requests.end())
+			return;
+		data = *it;
+
+		std::set<DownlistRequestData::RequestedNode *>::iterator rit = data->req_nodes.begin();
+		for (;rit != data->req_nodes.end(); ++rit) {
+			DownlistRequestData::RequestedNode *node = *rit;
+			if ((NodeAddress &)*node == resp.from) {
+				scheduler->CancelJobsByOwner(node);
+				data->req_nodes.erase(rit);
+				delete node;
+				break;
+			}
+		}
+		if (!data->req_nodes.size())
+			FinishDownlistRequests(data);
 	}
 
 	CKadNode::FindRequestData *CKadNode::GetFindData(rpc_id id) {
@@ -248,6 +289,10 @@ namespace dhtpp {
 		return data->id;
 	}
 
+	void CKadNode::GetLocalCloseNodes(const NodeID &id, std::vector<NodeInfo> &out) {
+		routing_table.GetClosestContacts(id, out);
+	}
+
 	CKadNode::FindRequestData *CKadNode::CreateFindData(const NodeID &id, FindRequestData::FindType type) {
 		// Create request data
 		FindRequestData *data = new FindRequestData;
@@ -346,14 +391,31 @@ namespace dhtpp {
 	}
 
 	void CKadNode::FinishSearch(FindRequestData *data) {
+		DownlistRequestData *ddata = new DownlistRequestData;
 		// Clean up
 		FindRequestData::Candidates::iterator it;
 		for (it = data->candidates.begin(); it != data->candidates.end(); ) {
 			FindRequestData::Candidate *cand = &*it;
 			it = data->candidates.erase(it);
 
-			if (cand->type == FindRequestData::Candidate::PENDING) {
-				scheduler->CancelJobsByOwner(cand);
+			switch (cand->type) {
+				case FindRequestData::Candidate::PENDING:
+					{
+						scheduler->CancelJobsByOwner(cand);
+						break;
+					}
+				case FindRequestData::Candidate::UP:
+					{
+						DownlistRequestData::RequestedNode *nd = new DownlistRequestData::RequestedNode;
+						*(NodeInfo *)nd = *(NodeInfo *)cand;
+						ddata->req_nodes.insert(nd);
+						break;
+					}
+				case FindRequestData::Candidate::DOWN:
+					{
+						ddata->down_nodes.push_back(cand->id);
+						break;
+					}
 			}
 
 			delete cand;
@@ -361,6 +423,8 @@ namespace dhtpp {
 
 		find_requests.erase(data);
 		delete data;
+
+		DoDownlistRequests(ddata);
 	}
 
 	rpc_id CKadNode::Store(const NodeID &key, const std::string &value, uint64 time_to_live, const store_callback &callback) {
@@ -524,10 +588,63 @@ namespace dhtpp {
 		}
 	}
 
+	void CKadNode::DoDownlistRequests(DownlistRequestData *data) {
+		if (!data->down_nodes.size() || !data->req_nodes.size()) {
+			FinishDownlistRequests(data);
+			return;
+		}
+		std::set<DownlistRequestData::RequestedNode *>::iterator it = data->req_nodes.begin();
+		DownlistRequest req;
+		std::copy(data->down_nodes.begin(), data->down_nodes.end(), std::back_inserter(req.down_nodes));
+		data->id = downlist_id_counter++;
+		downlist_requests.insert(data);
+		for (; it != data->req_nodes.end(); ++it) {
+			DownlistRequestData::RequestedNode *node = *it;
+			req.Init(my_info, *node, my_info.GetId(), data->id);
+			transport->SendDownlistRequest(req);
+			scheduler->AddJob_(timeout_period, boost::bind(&CKadNode::DownlistRequestTimeout, this, data, node), node);
+		}
+	}
+
+	void CKadNode::DoRemoveContact(NodeID node_id, ErrorCode code, rpc_id id) {
+		if (code == FAILED) {
+			// Node is not responding on pings
+			routing_table.RemoveContact(node_id);
+		}
+	}
+
+	void CKadNode::DownlistRequestTimeout(DownlistRequestData *data, DownlistRequestData::RequestedNode *node) {
+		if (node->attempts++ < attempts_number) {
+			DownlistRequest req;
+			std::copy(data->down_nodes.begin(), data->down_nodes.end(), std::back_inserter(req.down_nodes));
+			req.Init(my_info, *node, my_info.GetId(), data->id);
+			transport->SendDownlistRequest(req);
+			scheduler->AddJob_(timeout_period, boost::bind(&CKadNode::DownlistRequestTimeout, this, data, node), node);
+		} else {
+			data->req_nodes.erase(node);
+			delete node;
+			if (!data->req_nodes.size())
+				FinishDownlistRequests(data);
+		}
+	}
+
+	void CKadNode::FinishDownlistRequests(DownlistRequestData *data) {
+		downlist_requests.erase(data);
+		std::set<DownlistRequestData::RequestedNode *>::iterator it = data->req_nodes.begin();
+		for (; it != data->req_nodes.end();) {
+			DownlistRequestData::RequestedNode *node = *it;
+			scheduler->CancelJobsByOwner(node);
+			delete node;
+			it = data->req_nodes.erase(it);
+		}
+		delete data;
+	}
+
 	void CKadNode::Terminate() {
 		TerminatePingRequests();
 		TerminateFindRequests();
 		TerminateStoreRequests();
+		TerminateDownlistRequests();
 	}
 
 	void CKadNode::TerminatePingRequests() {
@@ -535,7 +652,7 @@ namespace dhtpp {
 		for (it = ping_requests.begin(); it != ping_requests.end(); ) {
 			PingRequestData *data = *it;
 			scheduler->CancelJobsByOwner(data);
-			data->callback(FAILED, data->GetId());
+			data->callback(TERMINATED, data->GetId());
 			it = ping_requests.erase(it);
 			delete data;
 		}
@@ -555,6 +672,11 @@ namespace dhtpp {
 				delete cand;
 			}
 			it = find_requests.erase(it);
+			if (data->type == FindRequestData::FIND_NODE) {
+				data->find_node_callback_(TERMINATED, NULL);
+			} else {
+				data->find_value_callback_(TERMINATED, NULL);
+			}
 			delete data;
 		}
 	}
@@ -571,7 +693,14 @@ namespace dhtpp {
 				delete node;
 			}
 			it = store_requests.erase(it);
+			data->callback(TERMINATED, data->id, NULL);
 			delete data;
+		}
+	}
+
+	void CKadNode::TerminateDownlistRequests() {
+		while (downlist_requests.size()) {
+			FinishDownlistRequests(*downlist_requests.begin());
 		}
 	}
 

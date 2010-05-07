@@ -13,6 +13,8 @@ namespace dhtpp {
 	public:
 		CRoutingTable(const NodeID &id);
 		bool AddContact(const Contact &contact);
+		bool RemoveContact(const NodeID &node_id);
+		bool GetContact(const NodeID &id, NodeInfo &cont) const;
 		void GetClosestContacts(const NodeID &id, std::vector<NodeInfo> &out_contacts);
 		void SaveBootstrapContacts(std::vector<NodeAddress> &out) const;
 

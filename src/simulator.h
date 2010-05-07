@@ -4,6 +4,7 @@
 #include "transport.h"
 #include "job_scheduler.h"
 #include "kad_node.h"
+#include "stats.h"
 
 #include <map>
 #include <vector>
@@ -18,10 +19,6 @@ class StochasticLib2;
 
 namespace dhtpp {
 
-	const uint64 network_delay = 50;
-	const uint64 network_delay_delta = 50;
-	const float packet_loss = 0.1f;
-
 	class CTransport : public ITransport {
 	public:
 		CTransport(CJobScheduler *scheduler);
@@ -32,11 +29,13 @@ namespace dhtpp {
 		DECLARE_RPC_METHOD(StoreRequest)
 		DECLARE_RPC_METHOD(FindNodeRequest)
 		DECLARE_RPC_METHOD(FindValueRequest)
+		DECLARE_RPC_METHOD(DownlistRequest)
 
 		DECLARE_RPC_METHOD(PingResponse)
 		DECLARE_RPC_METHOD(StoreResponse)
 		DECLARE_RPC_METHOD(FindNodeResponse)
 		DECLARE_RPC_METHOD(FindValueResponse)
+		DECLARE_RPC_METHOD(DownlistResponse)
 
 	public:
 		CKadNode *GetRandomNode();
@@ -52,7 +51,7 @@ namespace dhtpp {
 
 	class CSimulator {
 	public:
-		CSimulator(int nodesN);
+		CSimulator(int nodesN, CStats *stats);
 		void Run(uint64 period);
 
 	protected:
@@ -60,8 +59,7 @@ namespace dhtpp {
 		CJobScheduler scheduler;
 		CKadNode *supernode; // is always running
 		StochasticLib2 *random_lib;
-		double avg_on_time, avg_off_time;
-		double avg_on_time_delta, avg_off_time_delta;
+		CStats *stats;
 
 		struct InactiveNode {
 			NodeInfo info;

@@ -147,6 +147,22 @@ namespace dhtpp {
 		}
 	};
 
+	struct DownlistRequest : public RPCRequest {
+		std::vector<NodeID> down_nodes;
+
+		DownlistRequest(){}
+		DownlistRequest(const DownlistRequest &o) {
+			*this = o;
+		}
+
+		DownlistRequest &operator = (const DownlistRequest &o) {
+			*(RPCRequest *)this = o;
+			std::copy(o.down_nodes.begin(), o.down_nodes.end(), std::back_inserter(down_nodes));
+			return *this;
+		}
+	};
+
+	typedef RPCResponse DownlistResponse;
 }
 
 #endif // DHT_KAD_RPC_H

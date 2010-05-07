@@ -1,4 +1,5 @@
 #include "kbucket.h"
+#include "config.h"
 
 #include <cassert>
 #include <algorithm>
@@ -30,6 +31,10 @@ namespace dhtpp {
 
 	bool CKbucket::AddContactForceK(const Contact &contact, const NodeID &holder_id, uint16 count) {
 		assert(contacts.size() == K);
+
+#if !FORCE_K_OPTIMIZATION
+		return false;
+#endif
 
 		// Contacts for sorting
 		struct forceK {
@@ -93,6 +98,16 @@ namespace dhtpp {
 		Contact temp;
 		temp.id = id;
 		return contacts.erase(temp) > 0;
+	}
+
+	bool CKbucket::GetContact(const NodeID &id, NodeInfo &cont) const {
+		Contact temp;
+		temp.id = id;
+		ContactList::const_iterator it = contacts.find(temp);
+		if (it == contacts.end())
+			return false;
+		cont = *it;
+		return true;
 	}
 
 	bool CKbucket::LastSeenContact(Contact &out) const {

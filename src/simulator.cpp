@@ -35,7 +35,6 @@
 
 namespace dhtpp {
 	const uint64 print_time_interval = 5000;
-	const uint64 check_node_time_interval = 5000;
 
 	CTransport::CTransport(CJobScheduler *sched) {
 		scheduler = sched;
@@ -59,6 +58,15 @@ namespace dhtpp {
 	IMPLEMENT_RPC_METHOD(CTransport, FindNodeResponse)
 	IMPLEMENT_RPC_METHOD(CTransport, FindValueResponse)
 
+#if DOWNLIST_OPTIMIZATION
+	IMPLEMENT_RPC_METHOD(CTransport, DownlistRequest)
+	IMPLEMENT_RPC_METHOD(CTransport, DownlistResponse)
+#else
+	// Empty
+	void CTransport::SendDownlistRequest(const DownlistRequest &req) {}
+	void CTransport::SendDownlistResponse(const DownlistResponse &resp) {}
+#endif
+
 	CKadNode *CTransport::GetNode(const NodeAddress &addr) {
 		Nodes::iterator it = nodes.find(addr);
 		if (it == nodes.end())
@@ -76,16 +84,13 @@ namespace dhtpp {
 		return it->second;
 	}
 
-	CSimulator::CSimulator(int nodesN) {
+	CSimulator::CSimulator(int nodesN, CStats *st) {
 		transport = new CTransport(&scheduler);
+		stats = st;
+		stats->SetNodesN(nodesN);
 
 		int seed = 0;
 		random_lib = new StochasticLib2(seed);
-
-		avg_on_time		= 10*60*1000;
-		avg_on_time_delta = 120*1000;
-		avg_off_time	= 10*60*1000;
-		avg_off_time_delta = 120*1000;
 
 		CryptoPP::SHA1 sha;
 
@@ -156,7 +161,7 @@ namespace dhtpp {
 	void CSimulator::Run(uint64 period) {
 		scheduler.AddJob_(period, boost::bind(&CJobScheduler::Stop, &scheduler), &scheduler);
 		scheduler.AddJob_(print_time_interval, boost::bind(&CSimulator::PrintTime, this), this);
-		scheduler.AddJob_(check_node_time_interval, boost::bind(&CSimulator::CheckRandomNode, this), this);
+		scheduler.AddJob_(begin_stats, boost::bind(&CSimulator::CheckRandomNode, this), this);
 		scheduler.Run();
 	}
 
@@ -179,6 +184,21 @@ namespace dhtpp {
 				++active;
 			}
 		}
-		printf("CheckRandomNode: %d/%d\n", active, addrs.size());
+
+		std::vector<NodeInfo> closest;
+		node->GetLocalCloseNodes(node->GetNodeInfo().id, closest);
+		int closest_active = 0;
+		for (int i = 0; i < closest.size(); ++i) {
+			if (transport->GetNode(closest[i])) {
+				++closest_active;
+			}
+		}
+		printf("CheckRandomNode: %d/%d %d/%d\n", active, addrs.size(), closest_active, closest.size());
+		CStats::NodeStateInfo info;
+		info.routing_table_activeN = active;
+		info.routing_tableN = addrs.size();
+		info.closest_contacts_activeN = closest_active;
+		info.closest_contactsN = closest.size();
+		stats->InformAboutNode(info);
 	}
 }

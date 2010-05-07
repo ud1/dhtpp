@@ -31,15 +31,18 @@ namespace dhtpp {
 		void OnStoreRequest(const StoreRequest &req);
 		void OnFindNodeRequest(const FindNodeRequest &req);
 		void OnFindValueRequest(const FindValueRequest &req);
+		void OnDownlistRequest(const DownlistRequest &req);
 
 		void OnPingResponse(const PingResponse &resp);
 		void OnStoreResponse(const StoreResponse &resp);
 		void OnFindNodeResponse(const FindNodeResponse &resp);
 		void OnFindValueResponse(const FindValueResponse &resp);
+		void OnDownlistResponse(const DownlistResponse &resp);
 
 		enum ErrorCode {
 			SUCCEED,
 			FAILED,
+			TERMINATED,
 		};
 
 		typedef boost::function<void (ErrorCode code, rpc_id id)> ping_callback;
@@ -48,6 +51,8 @@ namespace dhtpp {
 		typedef boost::function<void (ErrorCode code, const FindValueResponse *resp)> find_value_callback;
 
 		typedef boost::function<void (ErrorCode code)> join_callback;
+
+		void GetLocalCloseNodes(const NodeID &id, std::vector<NodeInfo> &out);
 
 		rpc_id Ping(const NodeAddress &to, const ping_callback &callback);
 		rpc_id Store(const NodeID &key, const std::string &value, uint64 time_to_live, const store_callback &callback);
@@ -162,6 +167,22 @@ namespace dhtpp {
 			std::set<StoreNode *> store_nodes;
 		};
 
+		struct DownlistRequestData {
+			std::vector<NodeID> down_nodes;
+			rpc_id id;
+			rpc_id GetId() const {
+				return id;
+			}
+			struct RequestedNode : public NodeInfo {
+				RequestedNode() {
+					attempts = 0;
+				}
+				uint16 attempts;
+			};
+
+			std::set<RequestedNode *> req_nodes;
+		};
+
 		template <typename ReqType>
 		struct Comp {
 			bool operator()(const ReqType *d1, const ReqType *d2) const {
@@ -172,12 +193,14 @@ namespace dhtpp {
 		typedef std::set<PingRequestData *, Comp<PingRequestData> > PingRequests;
 		typedef std::set<FindRequestData *, Comp<FindRequestData> > FindRequests;
 		typedef std::set<StoreRequestData *, Comp<StoreRequestData> > StoreRequests;
+		typedef std::set<DownlistRequestData *, Comp<DownlistRequestData> > DownlistRequests;
 
 		PingRequests ping_requests;
 		FindRequests find_requests;
 		StoreRequests store_requests;
+		DownlistRequests downlist_requests;
 
-		rpc_id ping_id_counter, store_id_counter, find_id_counter;
+		rpc_id ping_id_counter, store_id_counter, find_id_counter, downlist_id_counter;
 
 		void UpdateRoutingTable(const RPCRequest &req);
 		void UpdateRoutingTable(const RPCResponse &resp);
@@ -210,9 +233,16 @@ namespace dhtpp {
 			JOINED,
 		} join_state;
 
+		// Downlist optimization
+		void DoDownlistRequests(DownlistRequestData *data);
+		void DoRemoveContact(NodeID node_id, ErrorCode code, rpc_id id);
+		void DownlistRequestTimeout(DownlistRequestData *data, DownlistRequestData::RequestedNode *node);
+		void FinishDownlistRequests(DownlistRequestData *data);
+
 		void TerminatePingRequests();
 		void TerminateFindRequests();
 		void TerminateStoreRequests();
+		void TerminateDownlistRequests();
 	};
 }
 

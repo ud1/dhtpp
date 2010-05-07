@@ -70,6 +70,24 @@ namespace dhtpp {
 		return false;
 	}
 
+	bool CRoutingTable::RemoveContact(const NodeID &node_id) {
+		BigInt id = (BigInt) node_id;
+		Buckets::iterator it = buckets.lower_bound(id, Comp());
+		assert(it != buckets.end());
+
+		bool res = it->RemoveContact(node_id);
+		return res;
+	}
+
+	bool CRoutingTable::GetContact(const NodeID &node_id, NodeInfo &cont) const {
+		BigInt id = (BigInt) node_id;
+		Buckets::const_iterator it = buckets.lower_bound(id, Comp());
+		assert(it != buckets.end());
+
+		bool res = it->GetContact(node_id, cont);
+		return res;
+	}
+
 	void CRoutingTable::GetClosestContacts(const NodeID &id_, std::vector<NodeInfo> &out_contacts) {
 		BigInt id = (BigInt) id_;
 		Buckets::iterator it = buckets.lower_bound(id, Comp());
