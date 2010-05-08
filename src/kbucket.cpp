@@ -1,4 +1,5 @@
 #include "kbucket.h"
+#include "timer.h"
 #include "config.h"
 
 #include <cassert>
@@ -16,24 +17,33 @@ namespace dhtpp {
 		return id >= low_bound && id < high_bound;
 	}
 
-	CKbucket::ErrorCode CKbucket::AddContact(const Contact &contact) {
+	RoutingTableErrorCode CKbucket::AddContact(const NodeInfo &info) {
+		Contact contact;
+		(NodeInfo &)contact = info;
+		contact.last_seen = GetTimerInstance()->GetCurrentTime();
+		return AddContact(contact);
+	}
+
+	RoutingTableErrorCode CKbucket::AddContact(const Contact &contact) {
 		assert(IdInRange(contact.GetId()));
 
 		if (contacts.size() >= K)
 			return FULL;
-		
-		bool res = contacts.insert(contact).second;
-		if (res)
+
+		std::pair<ContactList::iterator, bool> res = contacts.insert(contact);
+		if (res.second)
 			return SUCCEED;
 
-		return FAILED;
+		// Update contact
+		*res.first = contact;
+		return EXISTED;
 	}
 
-	bool CKbucket::AddContactForceK(const Contact &contact, const NodeID &holder_id, uint16 count) {
+	RoutingTableErrorCode CKbucket::AddContactForceK(const NodeInfo &info, const NodeID &holder_id, uint16 count) {
 		assert(contacts.size() == K);
 
 #if !FORCE_K_OPTIMIZATION
-		return false;
+		return FULL;
 #endif
 
 		// Contacts for sorting
@@ -91,7 +101,7 @@ namespace dhtpp {
 
 		// replace contact
 		contacts.erase(forceK_[less_useful_ind].it);
-		return AddContact(contact) == SUCCEED;
+		return AddContact(info);
 	}
 
 	bool CKbucket::RemoveContact(const NodeID &id) {
@@ -100,7 +110,7 @@ namespace dhtpp {
 		return contacts.erase(temp) > 0;
 	}
 
-	bool CKbucket::GetContact(const NodeID &id, NodeInfo &cont) const {
+	bool CKbucket::GetContact(const NodeID &id, Contact &cont) const {
 		Contact temp;
 		temp.id = id;
 		ContactList::const_iterator it = contacts.find(temp);
@@ -129,16 +139,13 @@ namespace dhtpp {
 		return true;
 	}
 
-	void CKbucket::GetContacts(std::vector<NodeInfo> &out_contacts) const {
-		ContactList::const_iterator it = contacts.begin();
-		for (; it != contacts.end(); ++it) {
-			out_contacts.push_back(*it);
-		}
+	void CKbucket::GetContacts(std::vector<Contact> &out_contacts) const {
+		std::copy(contacts.begin(), contacts.end(), std::back_inserter(out_contacts));
 	}
 
-	CKbucket::ErrorCode CKbucket::Split(CKbucket &first, CKbucket &second) const {
+	RoutingTableErrorCode CKbucket::Split(CKbucket &first, CKbucket &second) const {
 		ContactList::const_iterator it = contacts.begin(), end_it = contacts.end();
-		CKbucket::ErrorCode err;
+		RoutingTableErrorCode err;
 		for (; it != end_it; ++it) {
 			if (first.IdInRange(it->GetId())) {
 				if ( (err = first.AddContact(*it)) != SUCCEED )

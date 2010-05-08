@@ -6,6 +6,7 @@
 namespace dhtpp {
 	CJobScheduler::CJobScheduler() : semaphore(0 /* initial count */) {
 		isRunning = true;
+		jobs_done = 0;
 	}
 
 	CJobScheduler::~CJobScheduler() {
@@ -56,8 +57,10 @@ namespace dhtpp {
 						}
 						mutex.Unlock();
 					}
-					if (job)
+					if (job) {
 						job(); // do job
+						++jobs_done;
+					}
 				} else {
 					semaphore.Wait(t - GetTimerInstance()->GetCurrentTime());
 				}

@@ -20,6 +20,7 @@ namespace dhtpp {
 
 	CKadNode::~CKadNode() {
 		Terminate();
+		delete store;
 	}
 
 	void CKadNode::OnPingRequest(const PingRequest &req) {
@@ -65,7 +66,7 @@ namespace dhtpp {
 		std::vector<NodeID>::const_iterator it;
 		for (it = req.down_nodes.begin(); it != req.down_nodes.end(); ++it) {
 			const NodeID &id = *it;
-			NodeInfo info;
+			Contact info;
 			if (routing_table.GetContact(id, info)) {
 				Ping(info, boost::bind(&CKadNode::DoRemoveContact, this,
 					id, boost::lambda::_1, boost::lambda::_2));
@@ -80,23 +81,45 @@ namespace dhtpp {
 	}
 
 	void CKadNode::UpdateRoutingTable(const RPCRequest &req) {
-		Contact contact;
-		contact.id = req.sender_id;
-		(NodeAddress &) contact = req.from;
-		contact.last_seen = GetTimerInstance()->GetCurrentTime();
-		if (routing_table.AddContact(contact)) {
-			store->OnNewContact(contact);
-		}
+		NodeInfo *contact = new NodeInfo;
+		contact->id = req.sender_id;
+		*(NodeAddress *) contact = req.from;
+		UpdateRoutingTable(contact);
 	}
 
 	void CKadNode::UpdateRoutingTable(const RPCResponse &resp) {
-		Contact contact;
-		contact.id = resp.responder_id;
-		(NodeAddress &) contact = resp.from;
-		contact.last_seen = GetTimerInstance()->GetCurrentTime();
-		if (routing_table.AddContact(contact)) {
-			store->OnNewContact(contact);
+		NodeInfo *contact = new NodeInfo;
+		contact->id = resp.responder_id;
+		*(NodeAddress *) contact = resp.from;
+		UpdateRoutingTable(contact);
+	}
+
+	void CKadNode::UpdateRoutingTable(NodeInfo *contact) {
+		RoutingTableErrorCode err = routing_table.AddContact(*contact);
+		if (err == SUCCEED) {
+			store->OnNewContact(*contact);
+			delete contact;
+		} else if (err == FULL) {
+			// Check last seen contact
+			Contact *last_seen_contact = new Contact;
+			if (routing_table.LastSeenContact(contact->id, *last_seen_contact)) {
+				Ping(*last_seen_contact, boost::bind(&CKadNode::DoAddContact, this,
+					contact, last_seen_contact, 
+					boost::lambda::_1, boost::lambda::_2));
+			}
 		}
+	}
+
+	void CKadNode::DoAddContact(NodeInfo *new_contact, Contact *last_seen_contact, ErrorCode code, rpc_id id) {
+		if (code == FAILED) {
+			// last_seen_contact is down
+			routing_table.RemoveContact(last_seen_contact->id);
+			if (routing_table.AddContact(*new_contact) == SUCCEED) {
+				store->OnNewContact(*new_contact);
+			}
+		}
+		delete new_contact;
+		delete last_seen_contact;
 	}
 
 	void CKadNode::OnPingResponse(const PingResponse &resp) {

@@ -3,6 +3,7 @@
 
 #include "types.h"
 #include "contact.h"
+#include "routing_table_error_code.h"
 
 #include <set>
 #include <vector>
@@ -11,24 +12,19 @@ namespace dhtpp {
 
 	class CKbucket {
 	public:
-		enum ErrorCode {
-			SUCCEED,
-			FULL,
-			FAILED,
-		};
-		
 		CKbucket(const BigInt &low_bound, const BigInt &high_bound);
 
 		bool IdInRange(const NodeID &id) const;
-		ErrorCode AddContact(const Contact &contact);
+		RoutingTableErrorCode AddContact(const NodeInfo &info);
+		RoutingTableErrorCode AddContact(const Contact &contact);
 
 		// count = K = number_of_contacts_in_the_holder_bucket
-		bool AddContactForceK(const Contact &contact, const NodeID &holder_id, uint16 count);
+		RoutingTableErrorCode AddContactForceK(const NodeInfo &info, const NodeID &holder_id, uint16 count);
 		bool RemoveContact(const NodeID &id);
-		bool GetContact(const NodeID &id, NodeInfo &cont) const;
+		bool GetContact(const NodeID &id, Contact &cont) const;
 		bool LastSeenContact(Contact &out) const;
-		void GetContacts(std::vector<NodeInfo> &out_contacts) const;
-		ErrorCode Split(CKbucket &first, CKbucket &second) const;
+		void GetContacts(std::vector<Contact> &out_contacts) const;
+		RoutingTableErrorCode Split(CKbucket &first, CKbucket &second) const;
 
 		const BigInt &GetHighBound() const {
 			return high_bound;

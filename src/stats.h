@@ -1,6 +1,8 @@
 #ifndef DHT_STATS_H
 #define DHT_STATS_H
 
+#include "types.h"
+
 #include <string>
 #include <vector>
 
@@ -8,34 +10,31 @@ namespace dhtpp {
 
 	class CStats {
 	public:
+		~CStats();
 		struct NodeStateInfo {
 			int routing_tableN;
 			int routing_table_activeN;
 			int closest_contactsN;
 			int closest_contacts_activeN;
+		};
 
-			NodeStateInfo(){}
-			NodeStateInfo(const NodeStateInfo &o) {
-				*this = o;
-			}
-			NodeStateInfo &operator = (const NodeStateInfo &o) {
-				routing_tableN = o.routing_tableN;
-				routing_table_activeN = o.routing_table_activeN;
-				closest_contactsN = o.closest_contactsN;
-				closest_contacts_activeN = o.closest_contacts_activeN;
-				return *this;
-			}
+		struct RpcCounts {
+			uint64 t;
+			uint64 ping_reqs, store_req, find_node_req, find_value_req, downlist_req;
+			uint64 ping_resp, store_resp, find_node_resp, find_value_resp, downlist_resp;
 		};
 
 		bool Save(const std::string &filename);
 		void SetNodesN(int nodes) {
 			nodesN = nodes;
 		}
-		void InformAboutNode(const NodeStateInfo &info);
+		void InformAboutNode(NodeStateInfo *info);
+		void InformAboutRpcCounts(RpcCounts *counts);
 
 	private:
 		int nodesN;
-		std::vector<NodeStateInfo> nodes_info;
+		std::vector<NodeStateInfo *> nodes_info;
+		std::vector<RpcCounts *> rpc_counts;
 	};
 }
 

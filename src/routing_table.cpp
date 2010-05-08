@@ -16,15 +16,24 @@ namespace dhtpp {
 		buckets.insert(*holder_bucket);
 	}
 
-	bool CRoutingTable::AddContact(const Contact &contact) {
-		BigInt id = (BigInt) contact.GetId();
+	CRoutingTable::~CRoutingTable() {
+		Buckets::iterator it = buckets.begin();
+		while (it != buckets.end()) {
+			CKbucketEntry *entry = &*it;
+			it = buckets.erase(it);
+			delete entry;
+		}
+	}
+
+	RoutingTableErrorCode CRoutingTable::AddContact(const NodeInfo &info) {
+		BigInt id = (BigInt) info.GetId();
 		Buckets::iterator it = buckets.lower_bound(id, Comp());
 		assert(it != buckets.end());
 
-		CKbucket::ErrorCode res = it->AddContact(contact);
-		if (res == CKbucket::SUCCEED) {
-			return true;
-		} else if (res == CKbucket::FULL) {
+		RoutingTableErrorCode res = it->AddContact(info);
+		if (res == SUCCEED) {
+			return SUCCEED;
+		} else if (res == FULL) {
 			CKbucketEntry *ptr = &*it;
 			if (ptr == holder_bucket) {
 				// Split the bucket
@@ -51,23 +60,23 @@ namespace dhtpp {
 					holder_brother_bucket = left;
 				}
 
-				return AddContact(contact);
+				return AddContact(info);
 
 			} else if (ptr == holder_brother_bucket) {
 				// ForceK optimization
 				uint16 count = K - holder_bucket->GetContactsNumber();
 				assert(count >= 0);
 				if (count > 0) {
-					return holder_brother_bucket->AddContactForceK(contact, holder_id, count);
+					return holder_brother_bucket->AddContactForceK(info, holder_id, count);
 				}
 			}
 
 			// do nothing
-			return false;
+			return FULL;
 		}
 
-		// internal error
-		return false;
+		// already existed
+		return EXISTED;
 	}
 
 	bool CRoutingTable::RemoveContact(const NodeID &node_id) {
@@ -79,7 +88,7 @@ namespace dhtpp {
 		return res;
 	}
 
-	bool CRoutingTable::GetContact(const NodeID &node_id, NodeInfo &cont) const {
+	bool CRoutingTable::GetContact(const NodeID &node_id, Contact &cont) const {
 		BigInt id = (BigInt) node_id;
 		Buckets::const_iterator it = buckets.lower_bound(id, Comp());
 		assert(it != buckets.end());
@@ -88,7 +97,16 @@ namespace dhtpp {
 		return res;
 	}
 
-	void CRoutingTable::GetClosestContacts(const NodeID &id_, std::vector<NodeInfo> &out_contacts) {
+	bool CRoutingTable::LastSeenContact(const NodeID &node_id, Contact &out) const {
+		BigInt id = (BigInt) node_id;
+		Buckets::const_iterator it = buckets.lower_bound(id, Comp());
+		assert(it != buckets.end());
+
+		bool res = it->LastSeenContact(out);
+		return res;
+	}
+
+	void CRoutingTable::GetClosestContacts(const NodeID &id_, std::vector<Contact> &out_contacts) {
 		BigInt id = (BigInt) id_;
 		Buckets::iterator it = buckets.lower_bound(id, Comp());
 		assert(it != buckets.end());
@@ -102,7 +120,7 @@ namespace dhtpp {
 
 		// Less than K contacts, continue the searching
 		uint16 contacts_needed = K - out_contacts.size();
-		std::vector<NodeInfo> additional_contacts;
+		std::vector<Contact> additional_contacts;
 
 		// sort buckets by the distance
 		struct Buck {
@@ -142,10 +160,19 @@ namespace dhtpp {
 		std::copy(additional_contacts.begin(), additional_contacts.begin() + contacts_needed, std::back_inserter(out_contacts));
 	}
 
+	void CRoutingTable::GetClosestContacts(const NodeID &id, std::vector<NodeInfo> &out_contacts) {
+		std::vector<Contact> out_contacts_;
+		GetClosestContacts(id, out_contacts_);
+		std::vector<Contact>::iterator it = out_contacts_.begin();
+		for (; it != out_contacts_.end(); ++it) {
+			out_contacts.push_back(*it);
+		}
+	}
+
 	void CRoutingTable::SaveBootstrapContacts(std::vector<NodeAddress> &out) const {
 		Buckets::const_iterator it;
 		for (it = buckets.begin(); it != buckets.end(); ++it) {
-			std::vector<NodeInfo> contacts;
+			std::vector<Contact> contacts;
 			it->GetContacts(contacts);
 			for (std::vector<NodeInfo>::size_type i = 0; i < contacts.size(); ++i) {
 				out.push_back(contacts[i]);

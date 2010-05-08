@@ -204,6 +204,8 @@ namespace dhtpp {
 
 		void UpdateRoutingTable(const RPCRequest &req);
 		void UpdateRoutingTable(const RPCResponse &resp);
+		void UpdateRoutingTable(NodeInfo *contact);
+		void DoAddContact(NodeInfo *new_contact, Contact *last_seen_contact, ErrorCode code, rpc_id id);
 		void PingRequestTimeout(rpc_id id);
 
 		FindRequestData *CreateFindData(const NodeID &id, FindRequestData::FindType);

@@ -22,6 +22,13 @@ namespace dhtpp {
 		void CancelJobsByOwner(const void *owner);
 		void Run();
 		void Stop();
+		uint64 GetJobsCount() const {
+			return jobs.get<time_tag>().size();
+		}
+
+		uint64 JobsDone() const {
+			return jobs_done;
+		}
 
 	protected:
 		CSemaphore semaphore;
@@ -60,6 +67,8 @@ namespace dhtpp {
 			>
 		> Jobs;
 		Jobs jobs; // guarded by mutex
+
+		uint64 jobs_done;
 	};
 }
 

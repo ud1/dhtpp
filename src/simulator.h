@@ -14,6 +14,7 @@ class StochasticLib2;
 #define DECLARE_RPC_METHOD(name) \
 	public: \
 	void Send##name(const name &r); \
+	RPC_Counter name##_counter; \
 	private: \
 	void Do##name(name *r);
 
@@ -24,6 +25,16 @@ namespace dhtpp {
 		CTransport(CJobScheduler *scheduler);
 		bool AddNode(CKadNode *node);
 		bool RemoveNode(CKadNode *node);
+
+		struct RPC_Counter {
+			uint64 count;
+			RPC_Counter() {
+				count = 0;
+			}
+			operator uint64&() {
+				return count;
+			}
+		};
 
 		DECLARE_RPC_METHOD(PingRequest)
 		DECLARE_RPC_METHOD(StoreRequest)
@@ -74,6 +85,7 @@ namespace dhtpp {
 
 		void PrintTime();
 		void CheckRandomNode();
+		void SaveRpcCounts();
 	};
 }
 

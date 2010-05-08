@@ -15,6 +15,7 @@
 
 #define IMPLEMENT_RPC_METHOD(cl, name)														\
 	void cl::Send##name(const name &r) {													\
+		name##_counter++;																	\
 		if (r.to == r.from) {																\
 			Do##name(new name(r)); /* loopback	*/											\
 		}																					\
@@ -35,6 +36,7 @@
 
 namespace dhtpp {
 	const uint64 print_time_interval = 5000;
+	const uint64 print_rpc_counts_interval = 1000;
 
 	CTransport::CTransport(CJobScheduler *sched) {
 		scheduler = sched;
@@ -124,6 +126,9 @@ namespace dhtpp {
 
 	void CSimulator::ActivateNode(InactiveNode *nd) {
 		CKadNode *node = new CKadNode(nd->info, &scheduler, transport);
+		if (!nd->bootstrap_contacts.size()) {
+			nd->bootstrap_contacts.push_back(supernode->GetNodeInfo());
+		}
 		node->JoinNetwork(nd->bootstrap_contacts,
 			boost::bind(&CSimulator::StartNodeLoop, this, node, boost::lambda::_1));
 		scheduler.AddJob_(GenerateRandomOnTime(),
@@ -151,23 +156,27 @@ namespace dhtpp {
 	}
 
 	uint64 CSimulator::GenerateRandomOnTime() {
-		return avg_on_time - avg_on_time_delta + 2*((double)rand()/RAND_MAX*avg_on_time_delta);
+		return (uint64) (avg_on_time - avg_on_time_delta + 2*((double)rand()/RAND_MAX*avg_on_time_delta));
 	}
 
 	uint64 CSimulator::GenerateRandomOffTime() {
-		return avg_off_time - avg_off_time_delta + 2*((double)rand()/RAND_MAX*avg_off_time_delta);
+		return (uint64) (avg_off_time - avg_off_time_delta + 2*((double)rand()/RAND_MAX*avg_off_time_delta));
 	}
 
 	void CSimulator::Run(uint64 period) {
 		scheduler.AddJob_(period, boost::bind(&CJobScheduler::Stop, &scheduler), &scheduler);
 		scheduler.AddJob_(print_time_interval, boost::bind(&CSimulator::PrintTime, this), this);
 		scheduler.AddJob_(begin_stats, boost::bind(&CSimulator::CheckRandomNode, this), this);
+		scheduler.AddJob_(0, boost::bind(&CSimulator::SaveRpcCounts, this), this);
 		scheduler.Run();
 	}
 
 	void CSimulator::PrintTime() {
 		scheduler.AddJob_(print_time_interval, boost::bind(&CSimulator::PrintTime, this), this);
-		printf("time = %lld\n", GetTimerInstance()->GetCurrentTime());
+		printf("time = %lld, jobs = %lld, done = %lld\n", 
+			GetTimerInstance()->GetCurrentTime(),
+			scheduler.GetJobsCount(), 
+			scheduler.JobsDone());
 	}
 
 	void CSimulator::CheckRandomNode() {
@@ -179,7 +188,7 @@ namespace dhtpp {
 		std::vector<NodeAddress> addrs;
 		node->SaveBootstrapContacts(addrs);
 		int active = 0;
-		for (int i = 0; i < addrs.size(); ++i) {
+		for (std::vector<NodeAddress>::size_type i = 0; i < addrs.size(); ++i) {
 			if (transport->GetNode(addrs[i])) {
 				++active;
 			}
@@ -188,17 +197,34 @@ namespace dhtpp {
 		std::vector<NodeInfo> closest;
 		node->GetLocalCloseNodes(node->GetNodeInfo().id, closest);
 		int closest_active = 0;
-		for (int i = 0; i < closest.size(); ++i) {
+		for (std::vector<NodeInfo>::size_type i = 0; i < closest.size(); ++i) {
 			if (transport->GetNode(closest[i])) {
 				++closest_active;
 			}
 		}
 		printf("CheckRandomNode: %d/%d %d/%d\n", active, addrs.size(), closest_active, closest.size());
-		CStats::NodeStateInfo info;
-		info.routing_table_activeN = active;
-		info.routing_tableN = addrs.size();
-		info.closest_contacts_activeN = closest_active;
-		info.closest_contactsN = closest.size();
+		CStats::NodeStateInfo *info = new CStats::NodeStateInfo;
+		info->routing_table_activeN = active;
+		info->routing_tableN = addrs.size();
+		info->closest_contacts_activeN = closest_active;
+		info->closest_contactsN = closest.size();
 		stats->InformAboutNode(info);
+	}
+
+	void CSimulator::SaveRpcCounts() {
+		scheduler.AddJob_(print_rpc_counts_interval, boost::bind(&CSimulator::SaveRpcCounts, this), this);
+		CStats::RpcCounts *counts = new CStats::RpcCounts;
+		counts->t = GetTimerInstance()->GetCurrentTime();
+		counts->ping_reqs = transport->PingRequest_counter;
+		counts->store_req = transport->StoreRequest_counter;
+		counts->find_node_req = transport->FindNodeRequest_counter;
+		counts->find_value_req = transport->FindValueRequest_counter;
+		counts->downlist_req = transport->DownlistRequest_counter;
+		counts->ping_resp = transport->PingResponse_counter;
+		counts->store_resp = transport->StoreResponse_counter;
+		counts->find_node_resp = transport->FindNodeResponse_counter;
+		counts->find_value_resp = transport->FindValueResponse_counter;
+		counts->downlist_resp = transport->DownlistResponse_counter;
+		stats->InformAboutRpcCounts(counts);
 	}
 }

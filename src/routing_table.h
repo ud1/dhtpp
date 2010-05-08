@@ -2,6 +2,7 @@
 #define DHT_ROUTING_TABLE_H
 
 #include "kbucket.h"
+#include "routing_table_error_code.h"
 
 #include <boost/intrusive/set.hpp>
 
@@ -12,9 +13,13 @@ namespace dhtpp {
 	class CRoutingTable {
 	public:
 		CRoutingTable(const NodeID &id);
-		bool AddContact(const Contact &contact);
+		~CRoutingTable();
+
+		RoutingTableErrorCode AddContact(const NodeInfo &info);
 		bool RemoveContact(const NodeID &node_id);
-		bool GetContact(const NodeID &id, NodeInfo &cont) const;
+		bool GetContact(const NodeID &id, Contact &out) const;
+		bool LastSeenContact(const NodeID &node_id, Contact &out) const;
+		void GetClosestContacts(const NodeID &id, std::vector<Contact> &out_contacts);
 		void GetClosestContacts(const NodeID &id, std::vector<NodeInfo> &out_contacts);
 		void SaveBootstrapContacts(std::vector<NodeAddress> &out) const;
 
