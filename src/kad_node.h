@@ -255,6 +255,9 @@ namespace dhtpp {
 		// histogram of the number of requests in find procedures
 		std::map<int, int> find_node_reqs_count, find_value_reqs_count;
 
+		// Contacts we are pinging
+		std::set<NodeID> last_seen_contacts;
+
 		void TerminatePingRequests();
 		void TerminateFindRequests();
 		void TerminateStoreRequests();

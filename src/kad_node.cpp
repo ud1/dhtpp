@@ -102,10 +102,13 @@ namespace dhtpp {
 		} else if (err == FULL) {
 			// Check last seen contact
 			Contact *last_seen_contact = new Contact;
-			if (routing_table.LastSeenContact(contact->id, *last_seen_contact)) {
+			if (routing_table.LastSeenContact(contact->id, *last_seen_contact) && !last_seen_contacts.count(last_seen_contact->id)) {
+				last_seen_contacts.insert(last_seen_contact->id);
 				Ping(*last_seen_contact, boost::bind(&CKadNode::DoAddContact, this,
 					contact, last_seen_contact, 
 					boost::lambda::_1, boost::lambda::_2));
+			} else {
+				delete last_seen_contact;
 			}
 		}
 	}
@@ -118,6 +121,7 @@ namespace dhtpp {
 				store->OnNewContact(*new_contact);
 			}
 		}
+		last_seen_contacts.erase(last_seen_contact->id);
 		delete new_contact;
 		delete last_seen_contact;
 	}
