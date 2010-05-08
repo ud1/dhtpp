@@ -12,6 +12,12 @@ namespace dhtpp {
 		for (std::vector<RpcCounts *>::size_type i = 0; i < rpc_counts.size(); ++i) {
 			delete rpc_counts[i];
 		}
+		for (std::vector<FindReqsCountHist *>::size_type i = 0; i < find_node_req_count_hist.size(); ++i) {
+			delete find_node_req_count_hist[i];
+		}
+		for (std::vector<FindReqsCountHist *>::size_type i = 0; i < find_value_req_count_hist.size(); ++i) {
+			delete find_value_req_count_hist[i];
+		}
 	}
 
 	bool CStats::Save(const std::string &filename) {
@@ -43,7 +49,7 @@ namespace dhtpp {
 
 		for (std::vector<NodeStateInfo *>::size_type i = 0; i < nodes_info.size(); ++i) {
 			NodeStateInfo &info = *nodes_info[i];
-			out << "ni;" << info.closest_contactsN << ";"
+			out << "node_info;" << info.closest_contactsN << ";"
 				<< info.closest_contacts_activeN << ";"
 				<< info.routing_tableN << ";"
 				<< info.routing_table_activeN << "\n";
@@ -64,6 +70,26 @@ namespace dhtpp {
 				<< counts.downlist_resp << ";"
 				<< "\n";
 		}
+		for (std::vector<FindReqsCountHist *>::size_type i = 0; i < find_node_req_count_hist.size(); ++i) {
+			FindReqsCountHist &counts = *find_node_req_count_hist[i];
+			out << "find_node_hist;"
+				<< counts.t << ";";
+			std::map<int, int>::iterator it = counts.count.begin();
+			for (;it != counts.count.end(); ++it) {
+				out << it->first << "|" << it->second << ";";
+			}
+			out << "\n";
+		}
+		for (std::vector<FindReqsCountHist *>::size_type i = 0; i < find_value_req_count_hist.size(); ++i) {
+			FindReqsCountHist &counts = *find_value_req_count_hist[i];
+			out << "find_value_hist;"
+				<< counts.t << ";";
+			std::map<int, int>::iterator it = counts.count.begin();
+			for (;it != counts.count.end(); ++it) {
+				out << it->first << "|" << it->second << ";";
+			}
+			out << "\n";
+		}
 
 		return true;
 	}
@@ -74,5 +100,13 @@ namespace dhtpp {
 
 	void CStats::InformAboutRpcCounts(RpcCounts *counts) {
 		rpc_counts.push_back(counts);
+	}
+
+	void CStats::InformAboutFindNodeReqCountHist(FindReqsCountHist *hist) {
+		find_node_req_count_hist.push_back(hist);
+	}
+
+	void CStats::InformAboutFindValueReqCountHist(FindReqsCountHist *hist) {
+		find_value_req_count_hist.push_back(hist);
 	}
 }

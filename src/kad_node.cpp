@@ -391,6 +391,7 @@ namespace dhtpp {
 			transport->SendFindValueRequest(req);
 			scheduler->AddJob_(timeout_period, boost::bind(&CKadNode::FindRequestTimeout, this, data, cand), cand);
 		}
+		data->requests_total++;
 	}
 
 	void CKadNode::CallFindNodeCallback(FindRequestData *data) {
@@ -442,6 +443,12 @@ namespace dhtpp {
 			}
 
 			delete cand;
+		}
+
+		if (data->type == FindRequestData::FIND_NODE) {
+			find_node_reqs_count[data->requests_total]++;
+		} else {
+			find_value_reqs_count[data->requests_total]++;
 		}
 
 		find_requests.erase(data);

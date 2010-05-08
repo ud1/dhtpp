@@ -145,6 +145,26 @@ namespace dhtpp {
 		scheduler.AddJob_(GenerateRandomOffTime(),
 			boost::bind(&CSimulator::ActivateNode, this, nd), nd);
 		transport->RemoveNode(node);
+
+		{
+			CStats::FindReqsCountHist *find_node_hist = new CStats::FindReqsCountHist;
+			find_node_hist->t = GetTimerInstance()->GetCurrentTime();
+			find_node_hist->count = node->GetFindNodeStats();
+			if (find_node_hist->count.size()) {
+				stats->InformAboutFindNodeReqCountHist(find_node_hist);
+			} else delete find_node_hist;
+		}
+
+		{
+			CStats::FindReqsCountHist *find_value_hist = new CStats::FindReqsCountHist;
+			find_value_hist->t = GetTimerInstance()->GetCurrentTime();
+			find_value_hist->count = node->GetFindValueStats();
+			if (find_value_hist->count.size()) {
+				stats->InformAboutFindValueReqCountHist(find_value_hist);
+			} else delete find_value_hist;
+		}
+
+
 		delete node;
 	}
 

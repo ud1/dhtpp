@@ -7,6 +7,7 @@
 #include "job_scheduler.h"
 
 #include <set>
+#include <map>
 #include <vector>
 
 #include <boost/function.hpp>
@@ -62,6 +63,14 @@ namespace dhtpp {
 
 		void JoinNetwork(const std::vector<NodeAddress> &bootstrap_contacts, const join_callback &callback);
 
+		const std::map<int, int> &GetFindNodeStats() const {
+			return find_node_reqs_count;
+		}
+
+		const std::map<int, int> &GetFindValueStats() const {
+			return find_value_reqs_count;
+		}
+
 	protected:
 		ITransport *transport;
 		NodeInfo my_info;
@@ -84,6 +93,7 @@ namespace dhtpp {
 		struct FindRequestData {
 			FindRequestData() {
 				pending_nodes = 0;
+				requests_total = 0;
 			}
 			rpc_id id;
 			rpc_id GetId() const {
@@ -134,6 +144,7 @@ namespace dhtpp {
 			typedef boost::intrusive::set<Candidate> Candidates;
 			Candidates candidates;
 			int pending_nodes;
+			int requests_total;
 
 			Candidate *GetCandidate(const NodeID &id);
 			void Update(const std::vector<NodeInfo> &nodes);
@@ -240,6 +251,9 @@ namespace dhtpp {
 		void DoRemoveContact(NodeID node_id, ErrorCode code, rpc_id id);
 		void DownlistRequestTimeout(DownlistRequestData *data, DownlistRequestData::RequestedNode *node);
 		void FinishDownlistRequests(DownlistRequestData *data);
+
+		// histogram of the number of requests in find procedures
+		std::map<int, int> find_node_reqs_count, find_value_reqs_count;
 
 		void TerminatePingRequests();
 		void TerminateFindRequests();
