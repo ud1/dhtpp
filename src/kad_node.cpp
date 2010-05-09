@@ -95,9 +95,10 @@ namespace dhtpp {
 	}
 
 	void CKadNode::UpdateRoutingTable(NodeInfo *contact) {
-		RoutingTableErrorCode err = routing_table.AddContact(*contact);
+		bool is_close_to_holder;
+		RoutingTableErrorCode err = routing_table.AddContact(*contact, is_close_to_holder);
 		if (err == SUCCEED) {
-			store->OnNewContact(*contact);
+			store->OnNewContact(*contact, is_close_to_holder);
 			delete contact;
 		} else if (err == FULL) {
 			// Check last seen contact
@@ -119,9 +120,12 @@ namespace dhtpp {
 	void CKadNode::DoAddContact(NodeInfo *new_contact, Contact *last_seen_contact, ErrorCode code, rpc_id id) {
 		if (code == FAILED) {
 			// last_seen_contact is down
-			routing_table.RemoveContact(last_seen_contact->id);
-			if (routing_table.AddContact(*new_contact) == SUCCEED) {
-				store->OnNewContact(*new_contact);
+			bool is_close_to_holder;
+			if (routing_table.RemoveContact(last_seen_contact->id, is_close_to_holder)) {
+				store->OnRemoveContact(last_seen_contact->id, is_close_to_holder);
+			}
+			if (routing_table.AddContact(*new_contact, is_close_to_holder) == SUCCEED) {
+				store->OnNewContact(*new_contact, is_close_to_holder);
 			}
 		}
 		last_seen_contacts.erase(last_seen_contact->id);
@@ -308,6 +312,16 @@ namespace dhtpp {
 	}
 
 	rpc_id CKadNode::FindValue(const NodeID &key, const find_value_callback &callback) {
+		// Check our store
+		FindValueResponse resp;
+		store->GetItems(key, resp.values);
+		if (resp.values.size()) {
+			resp.id = find_id_counter++;
+			callback(SUCCEED, &resp);
+			return resp.id;
+		}
+
+		// Start searching process
 		// Create request data
 		FindRequestData *data = CreateFindData(key, FindRequestData::FIND_VALUE);
 		data->find_value_callback_ = callback;
@@ -489,8 +503,8 @@ namespace dhtpp {
 	}
 
 	void CKadNode::DoStore(StoreRequestData *data, bool single, ErrorCode code, const FindNodeResponse *resp) {
-		if (code == FAILED) {
-			data->callback(FAILED, data->id, NULL);
+		if (code != SUCCEED) {
+			data->callback(code, data->id, NULL);
 			delete data;
 			return;
 		}
@@ -627,6 +641,13 @@ namespace dhtpp {
 	}
 
 	void CKadNode::DoDownlistRequests(DownlistRequestData *data) {
+		// Remove down nodes from our routing table
+		for (std::vector<NodeID>::size_type i = 0; i < data->down_nodes.size(); ++i) {
+			bool is_close_to_holder;
+			if (routing_table.RemoveContact(data->down_nodes[i], is_close_to_holder)) {
+				store->OnRemoveContact(data->down_nodes[i], is_close_to_holder);
+			}
+		}
 		if (!data->down_nodes.size() || !data->req_nodes.size()) {
 			FinishDownlistRequests(data);
 			return;
@@ -647,7 +668,10 @@ namespace dhtpp {
 	void CKadNode::DoRemoveContact(NodeID node_id, ErrorCode code, rpc_id id) {
 		if (code == FAILED) {
 			// Node is not responding on pings
-			routing_table.RemoveContact(node_id);
+			bool is_close_to_holder;
+			if (routing_table.RemoveContact(node_id, is_close_to_holder)) {
+				store->OnRemoveContact(node_id, is_close_to_holder);
+			}
 		}
 	}
 

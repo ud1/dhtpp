@@ -25,16 +25,28 @@ namespace dhtpp {
 		}
 	}
 
-	RoutingTableErrorCode CRoutingTable::AddContact(const NodeInfo &info) {
+	bool CRoutingTable::IdInHolderRange(const NodeID &id) const {
+		if (holder_bucket->IdInRange(id))
+			return true;
+		//if (holder_brother_bucket && holder_brother_bucket->IdInRange(id))
+		//	return true;
+		return false;
+	}
+
+	RoutingTableErrorCode CRoutingTable::AddContact(const NodeInfo &info, bool &is_close_to_holder) {
 		BigInt id = (BigInt) info.GetId();
 		Buckets::iterator it = buckets.lower_bound(id, Comp());
 		assert(it != buckets.end());
 
+		is_close_to_holder = false;
 		RoutingTableErrorCode res = it->AddContact(info);
+		CKbucketEntry *ptr = &*it;
+
 		if (res == SUCCEED) {
+			if (ptr == holder_bucket)
+				is_close_to_holder = true;
 			return SUCCEED;
 		} else if (res == FULL) {
-			CKbucketEntry *ptr = &*it;
 			if (ptr == holder_bucket) {
 				// Split the bucket
 				BigInt wid = (ptr->GetHighBound() - ptr->GetLowBound())/2;
@@ -60,7 +72,7 @@ namespace dhtpp {
 					holder_brother_bucket = left;
 				}
 
-				return AddContact(info);
+				return AddContact(info, is_close_to_holder);
 
 			} else if (ptr == holder_brother_bucket) {
 				// ForceK optimization
@@ -79,10 +91,16 @@ namespace dhtpp {
 		return EXISTED;
 	}
 
-	bool CRoutingTable::RemoveContact(const NodeID &node_id) {
+	bool CRoutingTable::RemoveContact(const NodeID &node_id, bool &is_close_to_holder) {
 		BigInt id = (BigInt) node_id;
 		Buckets::iterator it = buckets.lower_bound(id, Comp());
 		assert(it != buckets.end());
+
+		if (&*it == holder_bucket) {
+			is_close_to_holder = true;
+		} else {
+			is_close_to_holder = false;
+		}
 
 		bool res = it->RemoveContact(node_id);
 		return res;

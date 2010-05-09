@@ -16,7 +16,8 @@ namespace dhtpp {
 		~CStore();
 		void StoreItem(const NodeID &key, const std::string &value, uint64 time_to_live);
 		void GetItems(const NodeID &key, std::vector<std::string> &out_values);
-		void OnNewContact(const NodeInfo &contact);
+		void OnNewContact(const NodeInfo &contact, bool is_close_to_holder);
+		void OnRemoveContact(const NodeID &contact, bool is_close_to_holder);
 
 	private:
 		struct Item {
@@ -33,10 +34,12 @@ namespace dhtpp {
 		Store store;
 		CKadNode *node;
 		CJobScheduler *scheduler;
+		int removed_contacts;
 
 		void RepublishItem(NodeID key, Item *item);
 		void DeleteItem(NodeID key, Item *item);
 		uint64 GetRandomRepublishTime();
+		uint64 GetRandomRepublishTimeDelta();
 		void StoreCallback(Item *item, CKadNode::ErrorCode code, rpc_id id, const BigInt *max_distance);
 	};
 }

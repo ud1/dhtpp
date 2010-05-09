@@ -14,6 +14,7 @@ namespace dhtpp {
 	CStore::CStore(CKadNode *node_, CJobScheduler *scheduler_) {
 		node = node_;
 		scheduler = scheduler_;
+		removed_contacts = 0;
 	}
 
 	CStore::~CStore() {
@@ -63,16 +64,38 @@ namespace dhtpp {
 		}
 	}
 
-	void CStore::OnNewContact(const NodeInfo &contact) {
+	void CStore::OnNewContact(const NodeInfo &contact, bool is_close_to_holder) {
 		uint64 cur_time = GetTimerInstance()->GetCurrentTime();
 		Store::iterator it;
 		for (it = store.begin(); it != store.end(); ++it) {
 			Item *item = it->second;
 			BigInt distance = (BigInt)it->first ^ (BigInt) contact.id;
-			if (item->max_distance_setted && item->max_distance > distance) {
+			if ((item->max_distance_setted && item->max_distance > distance) 
+				|| (node->IsJoined() && is_close_to_holder && node->IdInHolderRange(it->first)))
+			{
 				node->StoreToNode(contact, it->first, item->value, item->expiration_time - cur_time,
 					boost::bind(&CStore::StoreCallback, this, item,
 					boost::lambda::_1, boost::lambda::_2, boost::lambda::_3));
+			}
+		}
+	}
+
+	void CStore::OnRemoveContact(const NodeID &contact, bool is_close_to_holder) {
+		if (is_close_to_holder) {
+			if (++removed_contacts >= republish_treshhold) {
+				removed_contacts = 0;
+				uint64 cur_time = GetTimerInstance()->GetCurrentTime();
+				Store::iterator it;
+				for (it = store.begin(); it != store.end(); ++it) {
+					if (node->IdInHolderRange(it->first)) {
+						Item *item = it->second;
+						scheduler->CancelJobsByOwner(item);
+						scheduler->AddJob_(GetRandomRepublishTimeDelta(), 
+							boost::bind(&CStore::RepublishItem, this, it->first, item), item);
+						scheduler->AddJob_(item->expiration_time - cur_time, 
+							boost::bind(&CStore::DeleteItem, this, it->first, item), item);
+					}
+				}
 			}
 		}
 	}
@@ -115,10 +138,14 @@ namespace dhtpp {
 		return republish_time;
 #else
 		// beta-republish optimization
+		return (republish_time - republish_time_delta) + GetRandomRepublishTimeDelta();
+#endif
+	}
+
+	uint64 CStore::GetRandomRepublishTimeDelta() {
 		double rnd = (double) rand() / RAND_MAX;
 		double Ibeta = boost::math::ibeta_inv(2, 0.5, rnd);
-		return (republish_time - republish_time_delta) + (uint64)(2*republish_time_delta*Ibeta);
-#endif
+		return (uint64)(2*republish_time_delta*Ibeta);
 	}
 
 }

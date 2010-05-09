@@ -15,8 +15,9 @@ namespace dhtpp {
 		CRoutingTable(const NodeID &id);
 		~CRoutingTable();
 
-		RoutingTableErrorCode AddContact(const NodeInfo &info);
-		bool RemoveContact(const NodeID &node_id);
+		bool IdInHolderRange(const NodeID &id) const;
+		RoutingTableErrorCode AddContact(const NodeInfo &info, bool &is_close_to_holder);
+		bool RemoveContact(const NodeID &node_id, bool &is_close_to_holder);
 		bool GetContact(const NodeID &id, Contact &out) const;
 		bool LastSeenContact(const NodeID &node_id, Contact &out) const;
 		void GetClosestContacts(const NodeID &id, std::vector<Contact> &out_contacts);

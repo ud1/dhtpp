@@ -289,7 +289,7 @@ namespace dhtpp {
 
 	void CSimulator::FindValueCallback(NodeID *key, CKadNode::ErrorCode code, const FindValueResponse *resp) {
 		if (code == CKadNode::FAILED) {
-			stats->InformAboutFailedFindValue(GetTimerInstance()->GetCurrentTime());
+			stats->InformAboutFailedFindValue();
 			//printf("Find value failed\n");
 		}
 		delete key;

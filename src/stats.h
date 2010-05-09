@@ -40,14 +40,14 @@ namespace dhtpp {
 
 		void InformAboutFindNodeReqCountHist(FindReqsCountHist *hist);
 		void InformAboutFindValueReqCountHist(FindReqsCountHist *hist);
-		void InformAboutFailedFindValue(uint64 t);
+		void InformAboutFailedFindValue();
 
 	private:
 		int nodesN;
 		std::vector<NodeStateInfo *> nodes_info;
 		std::vector<RpcCounts *> rpc_counts;
 		std::vector<FindReqsCountHist *> find_node_req_count_hist, find_value_req_count_hist;
-		std::vector<uint64> failed_find_value;
+		uint64 failed_find_value;
 	};
 }
 

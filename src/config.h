@@ -6,7 +6,7 @@
 namespace dhtpp {
 
 	const uint16 NODE_ID_LENGTH_BYTES = 20;
-	const uint16 K = 16;
+	const uint16 K = 10;
 	const uint16 alpha = 3;
 	const uint64 timeout_period = 500; // ms
 	const uint16 attempts_number = 2;
@@ -22,6 +22,7 @@ namespace dhtpp {
 	const uint64 check_value_time_interval = 5000;
 	const int values_per_node = 10;
 	const uint64 min_rt_check_time_interval = 60*1000;
+	const int republish_treshhold = 4;
 
 	const uint64 network_delay = 50;
 	const uint64 network_delay_delta = 50;

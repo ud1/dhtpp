@@ -71,6 +71,14 @@ namespace dhtpp {
 			return find_value_reqs_count;
 		}
 
+		bool IdInHolderRange(const NodeID &id) const {
+			return routing_table.IdInHolderRange(id);
+		}
+
+		bool IsJoined() const {
+			return join_state == JOINED;
+		}
+
 	protected:
 		ITransport *transport;
 		NodeInfo my_info;
