@@ -15,7 +15,7 @@ namespace dhtpp {
 		join_pinging_nodesN = 0;
 		join_succeedN = 0;
 		join_state = NOT_JOINED;
-		store = new CStore;
+		store = new CStore(this, sched);
 	}
 
 	CKadNode::~CKadNode() {
@@ -102,7 +102,10 @@ namespace dhtpp {
 		} else if (err == FULL) {
 			// Check last seen contact
 			Contact *last_seen_contact = new Contact;
-			if (routing_table.LastSeenContact(contact->id, *last_seen_contact) && !last_seen_contacts.count(last_seen_contact->id)) {
+			if (routing_table.LastSeenContact(contact->id, *last_seen_contact) 
+				&& (last_seen_contact->last_seen + min_rt_check_time_interval < GetTimerInstance()->GetCurrentTime()) 
+				&& !last_seen_contacts.count(last_seen_contact->id)) 
+			{
 				last_seen_contacts.insert(last_seen_contact->id);
 				Ping(*last_seen_contact, boost::bind(&CKadNode::DoAddContact, this,
 					contact, last_seen_contact, 
@@ -560,6 +563,7 @@ namespace dhtpp {
 			if (node->id == resp.responder_id) {
 				scheduler->CancelJobsByOwner(node);
 				data->store_nodes.erase(sit);
+				data->succeded++;
 				delete node;
 				break;
 			}

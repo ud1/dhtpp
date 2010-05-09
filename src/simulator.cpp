@@ -6,6 +6,9 @@
 #include <boost/bind.hpp>
 #include <boost/lambda/lambda.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_int.hpp>
+#include <boost/random/variate_generator.hpp>
 
 #include "../agner_random/stocc.h"
 
@@ -37,6 +40,7 @@
 namespace dhtpp {
 	const uint64 print_time_interval = 5000;
 	const uint64 print_rpc_counts_interval = 1000;
+	static boost::mt19937 gen;
 
 	CTransport::CTransport(CJobScheduler *sched) {
 		scheduler = sched;
@@ -90,6 +94,7 @@ namespace dhtpp {
 		transport = new CTransport(&scheduler);
 		stats = st;
 		stats->SetNodesN(nodesN);
+		values_counter = values_total = nodesN * values_per_node;
 
 		int seed = 0;
 		random_lib = new StochasticLib2(seed);
@@ -173,6 +178,23 @@ namespace dhtpp {
 			printf("node not joined\n");
 			return;
 		}
+
+		CryptoPP::SHA1 sha;
+
+		int i = 0;
+		for (;values_counter > 0 && i < values_per_node; ++i, --values_counter) {
+			std::string value = "value" + boost::lexical_cast<std::string>(values_counter);
+			NodeID key;
+			sha.CalculateDigest(key.id, (const byte *) value.c_str(), value.size());
+			node->Store(key, value, expiration_time, 
+				boost::bind(&CSimulator::StoreCallback, this,
+				boost::lambda::_1,
+				boost::lambda::_2,
+				boost::lambda::_3));
+		}
+
+		scheduler.AddJob_(check_value_time_interval, 
+			boost::bind(&CSimulator::CheckRandomValue, this, node), node);
 	}
 
 	uint64 CSimulator::GenerateRandomOnTime() {
@@ -246,5 +268,36 @@ namespace dhtpp {
 		counts->find_value_resp = transport->FindValueResponse_counter;
 		counts->downlist_resp = transport->DownlistResponse_counter;
 		stats->InformAboutRpcCounts(counts);
+	}
+
+	void CSimulator::CheckRandomValue(CKadNode *node) {
+		scheduler.AddJob_(check_value_time_interval, 
+			boost::bind(&CSimulator::CheckRandomValue, this, node), node);
+
+		if (values_counter > 0)
+			return;
+
+		CryptoPP::SHA1 sha;
+		boost::uniform_int<> dist(0, values_total-1);
+		boost::variate_generator<boost::mt19937&, boost::uniform_int<> > rnd(gen, dist);
+		std::string value = "value" + boost::lexical_cast<std::string>(rnd());
+		NodeID *key = new NodeID;
+		sha.CalculateDigest(key->id, (const byte *) value.c_str(), value.size());
+		node->FindValue(*key, boost::bind(&CSimulator::FindValueCallback, this, key,
+			boost::lambda::_1, boost::lambda::_2));
+	}
+
+	void CSimulator::FindValueCallback(NodeID *key, CKadNode::ErrorCode code, const FindValueResponse *resp) {
+		if (code == CKadNode::FAILED) {
+			stats->InformAboutFailedFindValue(GetTimerInstance()->GetCurrentTime());
+			//printf("Find value failed\n");
+		}
+		delete key;
+	}
+
+	void CSimulator::StoreCallback(CKadNode::ErrorCode code, rpc_id id, const BigInt *max_distance) {
+		if (code == CKadNode::FAILED) {
+			printf("Store Error\n");
+		}
 	}
 }

@@ -12,6 +12,8 @@ namespace dhtpp {
 
 	class CStore {
 	public:
+		CStore(CKadNode *node, CJobScheduler *scheduler);
+		~CStore();
 		void StoreItem(const NodeID &key, const std::string &value, uint64 time_to_live);
 		void GetItems(const NodeID &key, std::vector<std::string> &out_values);
 		void OnNewContact(const NodeInfo &contact);

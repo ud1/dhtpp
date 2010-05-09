@@ -19,6 +19,9 @@ namespace dhtpp {
 	const double avg_off_time	= 10*60*1000;
 	const double avg_off_time_delta = 120*1000;
 	const uint64 check_node_time_interval = 1000;
+	const uint64 check_value_time_interval = 5000;
+	const int values_per_node = 10;
+	const uint64 min_rt_check_time_interval = 60*1000;
 
 	const uint64 network_delay = 50;
 	const uint64 network_delay_delta = 50;

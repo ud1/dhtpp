@@ -71,6 +71,7 @@ namespace dhtpp {
 		CKadNode *supernode; // is always running
 		StochasticLib2 *random_lib;
 		CStats *stats;
+		int values_counter, values_total;
 
 		struct InactiveNode {
 			NodeInfo info;
@@ -86,6 +87,9 @@ namespace dhtpp {
 		void PrintTime();
 		void CheckRandomNode();
 		void SaveRpcCounts();
+		void CheckRandomValue(CKadNode *node);
+		void FindValueCallback(NodeID *key, CKadNode::ErrorCode code, const FindValueResponse *resp);
+		void StoreCallback(CKadNode::ErrorCode code, rpc_id id, const BigInt *max_distance);
 	};
 }
 

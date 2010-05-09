@@ -40,6 +40,8 @@ namespace dhtpp {
 		out << "avg_off_time_delta;" << avg_off_time_delta << "\n";
 		out << "begin_stats;" << begin_stats << "\n";
 		out << "check_node_time_interval;" << check_node_time_interval << "\n";
+		out << "check_value_time_interval;" << check_value_time_interval << "\n";
+		out << "values_per_node;" << values_per_node << "\n";
 
 		out << "network_delay;" << network_delay << "\n";
 		out << "network_delay_delta;" << network_delay_delta << "\n";
@@ -91,6 +93,10 @@ namespace dhtpp {
 			out << "\n";
 		}
 
+		for (std::vector<uint64>::size_type i = 0; i < failed_find_value.size(); ++i) {
+			out << "failed_find_value;" << failed_find_value[i] << "\n";
+		}
+
 		return true;
 	}
 
@@ -108,5 +114,9 @@ namespace dhtpp {
 
 	void CStats::InformAboutFindValueReqCountHist(FindReqsCountHist *hist) {
 		find_value_req_count_hist.push_back(hist);
+	}
+
+	void CStats::InformAboutFailedFindValue(uint64 t) {
+		failed_find_value.push_back(t);
 	}
 }

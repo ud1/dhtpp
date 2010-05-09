@@ -11,6 +11,21 @@
 
 namespace dhtpp {
 
+	CStore::CStore(CKadNode *node_, CJobScheduler *scheduler_) {
+		node = node_;
+		scheduler = scheduler_;
+	}
+
+	CStore::~CStore() {
+		Store::iterator it = store.begin();
+		while (it != store.end()) {
+			Item *item = it->second;
+			scheduler->CancelJobsByOwner(item);
+			delete item;
+			it = store.erase(it);
+		}
+	}
+
 	void CStore::StoreItem(const NodeID &key, const std::string &value, uint64 time_to_live) {
 		Store::iterator it1, it2;
 		it1 = store.lower_bound(key);
