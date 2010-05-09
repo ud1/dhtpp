@@ -159,7 +159,7 @@ namespace dhtpp {
 		std::sort(sorted_buckets.begin(), sorted_buckets.end(), distance_comp_le<Buck>(id));
 
 		// extract additional contacts
-		for (std::vector<Buck>::size_type i = 0; i < sorted_buckets.size(); ++i) {
+		for (std::vector<Buck>::size_type i = 1; i < sorted_buckets.size(); ++i) {
 			sorted_buckets[i].entry->GetContacts(additional_contacts);
 			if (additional_contacts.size() >= contacts_needed)
 				break;

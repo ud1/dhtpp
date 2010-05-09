@@ -7,6 +7,7 @@
 #include "stats.h"
 
 #include <map>
+#include <set>
 #include <vector>
 
 class StochasticLib2;
@@ -16,7 +17,7 @@ class StochasticLib2;
 	void Send##name(const name &r); \
 	RPC_Counter name##_counter; \
 	private: \
-	void Do##name(name *r);
+	void Do##name(name r);
 
 namespace dhtpp {
 
@@ -57,12 +58,12 @@ namespace dhtpp {
 		Nodes nodes;
 
 		CJobScheduler *scheduler;
-
 	};
 
 	class CSimulator {
 	public:
 		CSimulator(int nodesN, CStats *stats);
+		~CSimulator();
 		void Run(uint64 period);
 
 	protected:
@@ -77,6 +78,9 @@ namespace dhtpp {
 			NodeInfo info;
 			std::vector<NodeAddress> bootstrap_contacts;
 		};
+
+		std::set<CKadNode *> active_nodes;
+		std::set<InactiveNode *> inactive_nodes;
 
 		void ActivateNode(InactiveNode *nd);
 		void DeactivateNode(CKadNode *node);

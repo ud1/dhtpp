@@ -11,6 +11,7 @@ namespace dhtpp {
 
 	class CStats {
 	public:
+		CStats();
 		~CStats();
 		struct NodeStateInfo {
 			int routing_tableN;
@@ -41,13 +42,14 @@ namespace dhtpp {
 		void InformAboutFindNodeReqCountHist(FindReqsCountHist *hist);
 		void InformAboutFindValueReqCountHist(FindReqsCountHist *hist);
 		void InformAboutFailedFindValue();
+		void InformAboutSucceedFindValue();
 
 	private:
 		int nodesN;
 		std::vector<NodeStateInfo *> nodes_info;
 		std::vector<RpcCounts *> rpc_counts;
 		std::vector<FindReqsCountHist *> find_node_req_count_hist, find_value_req_count_hist;
-		uint64 failed_find_value;
+		uint64 failed_find_value, succeed_find_value;
 	};
 }
 

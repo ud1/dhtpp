@@ -132,7 +132,7 @@ namespace dhtpp {
 			{
 				Candidate(const NodeInfo &info, const NodeID &target) {
 					*(NodeInfo *)this = info;
-					distance = (const BigInt) id ^ (const BigInt) target;
+					distance = (BigInt) id ^ (BigInt) target;
 					attempts = 0;
 					type = UNKNOWN;
 				}

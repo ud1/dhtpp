@@ -99,7 +99,6 @@ namespace dhtpp {
 		RoutingTableErrorCode err = routing_table.AddContact(*contact, is_close_to_holder);
 		if (err == SUCCEED) {
 			store->OnNewContact(*contact, is_close_to_holder);
-			delete contact;
 		} else if (err == FULL) {
 			// Check last seen contact
 			Contact *last_seen_contact = new Contact;
@@ -111,10 +110,11 @@ namespace dhtpp {
 				Ping(*last_seen_contact, boost::bind(&CKadNode::DoAddContact, this,
 					contact, last_seen_contact, 
 					boost::lambda::_1, boost::lambda::_2));
-			} else {
-				delete last_seen_contact;
+				return;
 			}
+			delete last_seen_contact;
 		}
+		delete contact;
 	}
 
 	void CKadNode::DoAddContact(NodeInfo *new_contact, Contact *last_seen_contact, ErrorCode code, rpc_id id) {

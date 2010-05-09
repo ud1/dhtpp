@@ -20,20 +20,19 @@
 	void cl::Send##name(const name &r) {													\
 		name##_counter++;																	\
 		if (r.to == r.from) {																\
-			Do##name(new name(r)); /* loopback	*/											\
+			Do##name(r); /* loopback	*/											\
 		}																					\
 		bool is_not_lost = (float) rand() / RAND_MAX > packet_loss;							\
 		if (is_not_lost) {																	\
 			uint64 delay = network_delay + network_delay_delta * rand() / RAND_MAX;			\
-			scheduler->AddJob_(delay, boost::bind(&cl::Do##name, this, new name(r)), this); \
+			scheduler->AddJob_(delay, boost::bind(&cl::Do##name, this, r), this); \
 		}																					\
 	}																						\
-	void cl::Do##name(name *r) {															\
-		INode *node = GetNode(r->to);														\
+	void cl::Do##name(name r) {															\
+		INode *node = GetNode(r.to);														\
 		if (node) {																			\
-			node->On##name(*r);																\
+			node->On##name(r);																\
 		}																					\
-		delete r;																			\
 	}
 
 
@@ -106,11 +105,13 @@ namespace dhtpp {
 		info.port = 5555;
 		sha.CalculateDigest(info.id.id, (const byte *)info.ip.c_str(), info.ip.size());
 		supernode = new CKadNode(info, &scheduler, transport);
+		active_nodes.insert(supernode);
 		transport->AddNode(supernode);
 
 		int nodes_to_run = (int) (nodesN * avg_on_time / (avg_on_time + avg_off_time));
 		for (int i = 0; i < nodes_to_run; ++i) {
 			InactiveNode *nd = new InactiveNode;
+			inactive_nodes.insert(nd);
 			nd->bootstrap_contacts.push_back(supernode->GetNodeInfo());
 			nd->info.ip = "node" + boost::lexical_cast<std::string>(i);
 			nd->info.port = 5555;
@@ -120,6 +121,7 @@ namespace dhtpp {
 
 		for (int i = nodes_to_run; i < nodesN; ++i) {
 			InactiveNode *nd = new InactiveNode;
+			inactive_nodes.insert(nd);
 			nd->bootstrap_contacts.push_back(supernode->GetNodeInfo());
 			nd->info.ip = "node" + boost::lexical_cast<std::string>(i);
 			nd->info.port = 5555;
@@ -127,6 +129,21 @@ namespace dhtpp {
 			scheduler.AddJob_(GenerateRandomOffTime(),
 				boost::bind(&CSimulator::ActivateNode, this, nd), nd);
 		}
+	}
+
+	CSimulator::~CSimulator() {
+		std::set<CKadNode *>::iterator ait = active_nodes.begin();
+		for (; ait != active_nodes.end(); ++ait) {
+			delete *ait;
+		}
+
+		std::set<InactiveNode *>::iterator iit = inactive_nodes.begin();
+		for (; iit != inactive_nodes.end(); ++iit) {
+			delete *iit;
+		}
+
+		delete transport;
+		delete random_lib;
 	}
 
 	void CSimulator::ActivateNode(InactiveNode *nd) {
@@ -139,6 +156,8 @@ namespace dhtpp {
 		scheduler.AddJob_(GenerateRandomOnTime(),
 			boost::bind(&CSimulator::DeactivateNode, this, node), node);
 		transport->AddNode(node);
+		active_nodes.insert(node);
+		inactive_nodes.erase(nd);
 		delete nd;
 	}
 
@@ -169,7 +188,8 @@ namespace dhtpp {
 			} else delete find_value_hist;
 		}
 
-
+		active_nodes.erase(node);
+		inactive_nodes.insert(nd);
 		delete node;
 	}
 
@@ -291,6 +311,8 @@ namespace dhtpp {
 		if (code == CKadNode::FAILED) {
 			stats->InformAboutFailedFindValue();
 			//printf("Find value failed\n");
+		} else if (code == CKadNode::SUCCEED) {
+			stats->InformAboutSucceedFindValue();
 		}
 		delete key;
 	}

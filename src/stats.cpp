@@ -5,6 +5,10 @@
 
 namespace dhtpp {
 
+	CStats::CStats() {
+		failed_find_value = succeed_find_value = 0;
+	}
+
 	CStats::~CStats() {
 		for (std::vector<NodeStateInfo *>::size_type i = 0; i < nodes_info.size(); ++i) {
 			delete nodes_info[i];
@@ -96,6 +100,7 @@ namespace dhtpp {
 		}
 
 		out << "failed_find_value;" << failed_find_value << "\n";
+		out << "succeed_find_value;" << succeed_find_value << "\n";
 
 		return true;
 	}
@@ -118,5 +123,9 @@ namespace dhtpp {
 
 	void CStats::InformAboutFailedFindValue() {
 		failed_find_value++;
+	}
+
+	void CStats::InformAboutSucceedFindValue() {
+		succeed_find_value++;
 	}
 }
