@@ -9,10 +9,7 @@ namespace dhtpp {
 		holder_id = id;
 		holder_brother_bucket = NULL;
 
-		BigInt high_bound;
-		high_bound.pow2(8*NODE_ID_LENGTH_BYTES);
-		high_bound--;
-		holder_bucket = new CKbucketEntry(0, high_bound);
+		holder_bucket = new CKbucketEntry(NullNodeID(), MaxNodeID());
 		buckets.insert(*holder_bucket);
 	}
 
@@ -34,7 +31,7 @@ namespace dhtpp {
 	}
 
 	RoutingTableErrorCode CRoutingTable::AddContact(const NodeInfo &info, bool &is_close_to_holder) {
-		BigInt id = (BigInt) info.GetId();
+		NodeID id = info.GetId();
 		Buckets::iterator it = buckets.lower_bound(id, Comp());
 		assert(it != buckets.end());
 
@@ -49,7 +46,8 @@ namespace dhtpp {
 		} else if (res == FULL) {
 			if (ptr == holder_bucket) {
 				// Split the bucket
-				BigInt wid = (ptr->GetHighBound() - ptr->GetLowBound())/2;
+				NodeID wid = (ptr->GetHighBound() - ptr->GetLowBound());
+				wid >>= 1;
 				CKbucketEntry *left = new CKbucketEntry(
 					ptr->GetLowBound(),
 					ptr->GetLowBound() + wid);
@@ -92,8 +90,7 @@ namespace dhtpp {
 	}
 
 	bool CRoutingTable::RemoveContact(const NodeID &node_id, bool &is_close_to_holder) {
-		BigInt id = (BigInt) node_id;
-		Buckets::iterator it = buckets.lower_bound(id, Comp());
+		Buckets::iterator it = buckets.lower_bound(node_id, Comp());
 		assert(it != buckets.end());
 
 		if (&*it == holder_bucket) {
@@ -107,8 +104,7 @@ namespace dhtpp {
 	}
 
 	bool CRoutingTable::GetContact(const NodeID &node_id, Contact &cont) const {
-		BigInt id = (BigInt) node_id;
-		Buckets::const_iterator it = buckets.lower_bound(id, Comp());
+		Buckets::const_iterator it = buckets.lower_bound(node_id, Comp());
 		assert(it != buckets.end());
 
 		bool res = it->GetContact(node_id, cont);
@@ -116,16 +112,14 @@ namespace dhtpp {
 	}
 
 	bool CRoutingTable::LastSeenContact(const NodeID &node_id, Contact &out) const {
-		BigInt id = (BigInt) node_id;
-		Buckets::const_iterator it = buckets.lower_bound(id, Comp());
+		Buckets::const_iterator it = buckets.lower_bound(node_id, Comp());
 		assert(it != buckets.end());
 
 		bool res = it->LastSeenContact(out);
 		return res;
 	}
 
-	void CRoutingTable::GetClosestContacts(const NodeID &id_, std::vector<Contact> &out_contacts) {
-		BigInt id = (BigInt) id_;
+	void CRoutingTable::GetClosestContacts(const NodeID &id, std::vector<Contact> &out_contacts) {
 		Buckets::iterator it = buckets.lower_bound(id, Comp());
 		assert(it != buckets.end());
 
@@ -146,7 +140,7 @@ namespace dhtpp {
 			Buck(const CKbucketEntry *e) {
 				entry = e;
 			}
-			const BigInt &GetId() const {
+			const NodeID &GetId() const {
 				return entry->GetHighBound();
 			}
 		};

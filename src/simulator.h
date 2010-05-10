@@ -12,12 +12,25 @@
 
 class StochasticLib2;
 
+#if 0
+
 #define DECLARE_RPC_METHOD(name) \
 	public: \
 	void Send##name(const name &r); \
 	RPC_Counter name##_counter; \
 	private: \
 	void Do##name(name r);
+
+#else
+
+#define DECLARE_RPC_METHOD(name) \
+	public: \
+	void Send##name(const name &r); \
+	RPC_Counter name##_counter; \
+	private: \
+	void Do##name(name *r);
+
+#endif
 
 namespace dhtpp {
 
@@ -93,7 +106,7 @@ namespace dhtpp {
 		void SaveRpcCounts();
 		void CheckRandomValue(CKadNode *node);
 		void FindValueCallback(NodeID *key, CKadNode::ErrorCode code, const FindValueResponse *resp);
-		void StoreCallback(CKadNode::ErrorCode code, rpc_id id, const BigInt *max_distance);
+		void StoreCallback(CKadNode::ErrorCode code, rpc_id id, const NodeID *max_distance);
 	};
 }
 

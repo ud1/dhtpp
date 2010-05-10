@@ -7,13 +7,12 @@
 
 namespace dhtpp {
 
-	CKbucket::CKbucket(const BigInt &low_bound_, const BigInt &high_bound_) {
+	CKbucket::CKbucket(const NodeID &low_bound_, const NodeID &high_bound_) {
 		low_bound = low_bound_;
 		high_bound = high_bound_;
 	}
 
-	bool CKbucket::IdInRange(const NodeID &id_) const {
-		BigInt id = (BigInt) id_;
+	bool CKbucket::IdInRange(const NodeID &id) const {
 		return id >= low_bound && id < high_bound;
 	}
 
@@ -72,7 +71,7 @@ namespace dhtpp {
 		for (i = 0, it = contacts.begin(); it != contacts.end(); ++it, ++i)
 			forceK_[i].it = it;
 
-		std::sort(forceK_, forceK_ + K-1, distance_comp_ge<forceK>((BigInt) holder_id));
+		std::sort(forceK_, forceK_ + K-1, distance_comp_ge<forceK>(holder_id));
 		for (i = 0; i < count; ++i) // only _count_ contacts
 			forceK_[i].distance_weight = i;
 

@@ -28,7 +28,7 @@ namespace dhtpp {
 			uint64 expiration_time;
 			std::string value;
 			bool max_distance_setted;
-			BigInt max_distance;
+			NodeID max_distance;
 		};
 		typedef std::multimap<NodeID, Item *> Store;
 		Store store;
@@ -40,7 +40,7 @@ namespace dhtpp {
 		void DeleteItem(NodeID key, Item *item);
 		uint64 GetRandomRepublishTime();
 		uint64 GetRandomRepublishTimeDelta();
-		void StoreCallback(Item *item, CKadNode::ErrorCode code, rpc_id id, const BigInt *max_distance);
+		void StoreCallback(Item *item, CKadNode::ErrorCode code, rpc_id id, const NodeID *max_distance);
 	};
 }
 

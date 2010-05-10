@@ -47,7 +47,7 @@ namespace dhtpp {
 		};
 
 		typedef boost::function<void (ErrorCode code, rpc_id id)> ping_callback;
-		typedef boost::function<void (ErrorCode code, rpc_id id, const BigInt *max_distance)> store_callback;
+		typedef boost::function<void (ErrorCode code, rpc_id id, const NodeID *max_distance)> store_callback;
 		typedef boost::function<void (ErrorCode code, const FindNodeResponse *resp)> find_node_callback;
 		typedef boost::function<void (ErrorCode code, const FindValueResponse *resp)> find_value_callback;
 
@@ -119,7 +119,7 @@ namespace dhtpp {
 			find_value_callback find_value_callback_;
 
 			struct CandidateLite {
-				BigInt distance;
+				NodeID distance;
 				bool operator < (const CandidateLite &o) const {
 					return distance < o.distance;
 				}
@@ -132,7 +132,7 @@ namespace dhtpp {
 			{
 				Candidate(const NodeInfo &info, const NodeID &target) {
 					*(NodeInfo *)this = info;
-					distance = (BigInt) id ^ (BigInt) target;
+					distance = id ^ target;
 					attempts = 0;
 					type = UNKNOWN;
 				}
@@ -166,7 +166,7 @@ namespace dhtpp {
 			store_callback callback;
 			uint16 succeded;
 
-			BigInt max_distance;
+			NodeID max_distance;
 
 			StoreRequestData() {
 				succeded = 0;

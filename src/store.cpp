@@ -69,8 +69,8 @@ namespace dhtpp {
 		Store::iterator it;
 		for (it = store.begin(); it != store.end(); ++it) {
 			Item *item = it->second;
-			BigInt distance = (BigInt)it->first ^ (BigInt) contact.id;
-			if ((item->max_distance_setted && item->max_distance > distance) 
+			NodeID distance = it->first ^ contact.id;
+			if ((item->max_distance_setted && distance < item->max_distance) 
 				|| (node->IsJoined() && is_close_to_holder && node->IdInHolderRange(it->first)))
 			{
 				node->StoreToNode(contact, it->first, item->value, item->expiration_time - cur_time,
@@ -126,7 +126,7 @@ namespace dhtpp {
 		}
 	}
 
-	void CStore::StoreCallback(Item *item, CKadNode::ErrorCode code, rpc_id id, const BigInt *max_distance) {
+	void CStore::StoreCallback(Item *item, CKadNode::ErrorCode code, rpc_id id, const NodeID *max_distance) {
 		if (code == CKadNode::SUCCEED) {
 			item->max_distance_setted = true;
 			item->max_distance = *max_distance;

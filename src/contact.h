@@ -64,26 +64,26 @@ namespace dhtpp {
 
 	template<typename T>
 	struct distance_comp_ge {
-		distance_comp_ge(const BigInt &holder_id_) : holder_id(holder_id_) {};
+		distance_comp_ge(const NodeID &holder_id_) : holder_id(holder_id_) {};
 
 		bool operator()(const T &f1, const T &f2) {
-			return ((BigInt)f1.GetId() ^ holder_id) >= // Greater or equal
-				((BigInt)f2.GetId() ^ holder_id);
+			return (f1.GetId() ^ holder_id) >= // Greater or equal
+				(f2.GetId() ^ holder_id);
 		}
 
-		BigInt holder_id;
+		NodeID holder_id;
 	};
 
 	template<typename T>
 	struct distance_comp_le {
-		distance_comp_le(const BigInt &holder_id_) : holder_id(holder_id_) {};
+		distance_comp_le(const NodeID &holder_id_) : holder_id(holder_id_) {};
 
 		bool operator()(const T &f1, const T &f2) {
-			return ((BigInt)f1.GetId() ^ holder_id) <= // Less or equal
-				((BigInt)f2.GetId() ^ holder_id);
+			return (f1.GetId() ^ holder_id) <= // Less or equal
+				(f2.GetId() ^ holder_id);
 		}
 
-		BigInt holder_id;
+		NodeID holder_id;
 	};
 
 }

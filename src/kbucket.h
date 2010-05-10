@@ -12,7 +12,7 @@ namespace dhtpp {
 
 	class CKbucket {
 	public:
-		CKbucket(const BigInt &low_bound, const BigInt &high_bound);
+		CKbucket(const NodeID &low_bound, const NodeID &high_bound);
 
 		bool IdInRange(const NodeID &id) const;
 		RoutingTableErrorCode AddContact(const NodeInfo &info);
@@ -26,11 +26,11 @@ namespace dhtpp {
 		void GetContacts(std::vector<Contact> &out_contacts) const;
 		RoutingTableErrorCode Split(CKbucket &first, CKbucket &second) const;
 
-		const BigInt &GetHighBound() const {
+		const NodeID &GetHighBound() const {
 			return high_bound;
 		}
 
-		const BigInt &GetLowBound() const {
+		const NodeID &GetLowBound() const {
 			return low_bound;
 		}
 
@@ -48,7 +48,7 @@ namespace dhtpp {
 		typedef std::set<Contact, Comp> ContactList;
 
 		ContactList contacts;
-		BigInt low_bound, high_bound;
+		NodeID low_bound, high_bound;
 	};
 
 }

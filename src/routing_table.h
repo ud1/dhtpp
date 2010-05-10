@@ -30,7 +30,7 @@ namespace dhtpp {
 			public boost::intrusive::set_base_hook<> 
 		{
 		public:
-			CKbucketEntry(const BigInt &low_bound, const BigInt &high_bound) :
+			CKbucketEntry(const NodeID &low_bound, const NodeID &high_bound) :
 				CKbucket(low_bound, high_bound) {}
 
 			bool operator <(const CKbucketEntry &o) const {
@@ -39,10 +39,10 @@ namespace dhtpp {
 		};
 
 		struct Comp {
-			bool operator()(const CKbucketEntry &b1, const BigInt &bi2) const {
+			bool operator()(const CKbucketEntry &b1, const NodeID &bi2) const {
 				return b1.GetHighBound() < bi2;
 			}
-			bool operator()(const BigInt &bi1, const CKbucketEntry &b2) const {
+			bool operator()(const NodeID &bi1, const CKbucketEntry &b2) const {
 				return bi1 < b2.GetHighBound();
 			}
 		};

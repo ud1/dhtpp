@@ -212,7 +212,7 @@ namespace dhtpp {
 	CKadNode::FindRequestData::Candidate *CKadNode::FindRequestData::GetCandidate(const NodeID &id) {
 		// Get Candidate by NodeId
 		FindRequestData::CandidateLite lite;
-		lite.distance = (BigInt) id ^ (BigInt) target;
+		lite.distance = id ^ target;
 		FindRequestData::Candidates::iterator cit = candidates.find(lite, std::less<FindRequestData::CandidateLite>());
 		if (cit == candidates.end())
 			return NULL;
@@ -530,9 +530,9 @@ namespace dhtpp {
 		}
 
 		if (!single && resp->nodes.size() < K) {
-			data->max_distance = (BigInt) MaxNodeID();
+			data->max_distance = MaxNodeID();
 		} else {
-			data->max_distance = (BigInt) resp->nodes[resp->nodes.size()-1].id ^ (BigInt) data->key;
+			data->max_distance = resp->nodes[resp->nodes.size()-1].id ^ data->key;
 		}
 	}
 

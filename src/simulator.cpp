@@ -16,6 +16,7 @@
 
 #include <iterator>
 
+#if 0
 #define IMPLEMENT_RPC_METHOD(cl, name)														\
 	void cl::Send##name(const name &r) {													\
 		name##_counter++;																	\
@@ -34,7 +35,29 @@
 			node->On##name(r);																\
 		}																					\
 	}
+#else
 
+#define IMPLEMENT_RPC_METHOD(cl, name)														\
+	void cl::Send##name(const name &r) {													\
+		name##_counter++;																	\
+		if (r.to == r.from) {																\
+			Do##name(new name(r)); /* loopback	*/											\
+		}																					\
+		bool is_not_lost = (float) rand() / RAND_MAX > packet_loss;							\
+		if (is_not_lost) {																	\
+			uint64 delay = network_delay + network_delay_delta * rand() / RAND_MAX;			\
+			scheduler->AddJob_(delay, boost::bind(&cl::Do##name, this, new name(r)), this); \
+		}																					\
+	}																						\
+	void cl::Do##name(name *r) {															\
+		INode *node = GetNode(r->to);														\
+		if (node) {																			\
+			node->On##name(*r);																\
+		}																					\
+		delete r;																			\
+	}
+
+#endif
 
 namespace dhtpp {
 	const uint64 print_time_interval = 5000;
@@ -108,6 +131,7 @@ namespace dhtpp {
 		active_nodes.insert(supernode);
 		transport->AddNode(supernode);
 
+#if 0
 		int nodes_to_run = (int) (nodesN * avg_on_time / (avg_on_time + avg_off_time));
 		for (int i = 0; i < nodes_to_run; ++i) {
 			InactiveNode *nd = new InactiveNode;
@@ -129,6 +153,19 @@ namespace dhtpp {
 			scheduler.AddJob_(GenerateRandomOffTime(),
 				boost::bind(&CSimulator::ActivateNode, this, nd), nd);
 		}
+
+#else
+		for (int i = 0; i < nodesN; ++i) {
+			uint64 t = (avg_on_time + avg_off_time) * i / nodesN;
+			InactiveNode *nd = new InactiveNode;
+			inactive_nodes.insert(nd);
+			nd->bootstrap_contacts.push_back(supernode->GetNodeInfo());
+			nd->info.ip = "node" + boost::lexical_cast<std::string>(i);
+			nd->info.port = 5555;
+			sha.CalculateDigest(nd->info.id.id, (const byte *)nd->info.ip.c_str(), nd->info.ip.size());
+			scheduler.AddJob_(t, boost::bind(&CSimulator::ActivateNode, this, nd), nd);
+		}
+#endif
 	}
 
 	CSimulator::~CSimulator() {
@@ -317,7 +354,7 @@ namespace dhtpp {
 		delete key;
 	}
 
-	void CSimulator::StoreCallback(CKadNode::ErrorCode code, rpc_id id, const BigInt *max_distance) {
+	void CSimulator::StoreCallback(CKadNode::ErrorCode code, rpc_id id, const NodeID *max_distance) {
 		if (code == CKadNode::FAILED) {
 			printf("Store Error\n");
 		}
