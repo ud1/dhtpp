@@ -119,8 +119,8 @@ namespace dhtpp {
 		return res;
 	}
 
-	void CRoutingTable::GetClosestContacts(const NodeID &id, std::vector<Contact> &out_contacts) {
-		Buckets::iterator it = buckets.lower_bound(id, Comp());
+	void CRoutingTable::GetClosestContacts(const NodeID &id, std::vector<const Contact *> &out_contacts) const {
+		Buckets::const_iterator it = buckets.lower_bound(id, Comp());
 		assert(it != buckets.end());
 
 		it->GetContacts(out_contacts);
@@ -132,7 +132,7 @@ namespace dhtpp {
 
 		// Less than K contacts, continue the searching
 		uint16 contacts_needed = K - out_contacts.size();
-		std::vector<Contact> additional_contacts;
+		std::vector<const Contact *> additional_contacts;
 
 		// sort buckets by the distance
 		struct Buck {
@@ -167,17 +167,17 @@ namespace dhtpp {
 
 		// We have more than K contacts
 		// sort them
-		std::sort(additional_contacts.begin(), additional_contacts.end(), distance_comp_le<NodeInfo>(id));
+		std::sort(additional_contacts.begin(), additional_contacts.end(), distance_comp_le_ptr<const Contact *>(id));
 		// copy contacts with smallest distance
 		std::copy(additional_contacts.begin(), additional_contacts.begin() + contacts_needed, std::back_inserter(out_contacts));
 	}
 
-	void CRoutingTable::GetClosestContacts(const NodeID &id, std::vector<NodeInfo> &out_contacts) {
-		std::vector<Contact> out_contacts_;
+	void CRoutingTable::GetClosestContacts(const NodeID &id, std::vector<NodeInfo> &out_contacts) const {
+		std::vector<const Contact *> out_contacts_;
 		GetClosestContacts(id, out_contacts_);
-		std::vector<Contact>::iterator it = out_contacts_.begin();
+		std::vector<const Contact *>::iterator it = out_contacts_.begin();
 		for (; it != out_contacts_.end(); ++it) {
-			out_contacts.push_back(*it);
+			out_contacts.push_back(**it);
 		}
 	}
 

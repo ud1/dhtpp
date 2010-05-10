@@ -20,8 +20,8 @@ namespace dhtpp {
 		bool RemoveContact(const NodeID &node_id, bool &is_close_to_holder);
 		bool GetContact(const NodeID &id, Contact &out) const;
 		bool LastSeenContact(const NodeID &node_id, Contact &out) const;
-		void GetClosestContacts(const NodeID &id, std::vector<Contact> &out_contacts);
-		void GetClosestContacts(const NodeID &id, std::vector<NodeInfo> &out_contacts);
+		void GetClosestContacts(const NodeID &id, std::vector<const Contact *> &out_contacts) const;
+		void GetClosestContacts(const NodeID &id, std::vector<NodeInfo> &out_contacts) const;
 		void SaveBootstrapContacts(std::vector<NodeAddress> &out) const;
 
 	protected:

@@ -4,7 +4,6 @@
 #include <string>
 
 #include <boost/cstdint.hpp>
-#include <boost/mp_math/mp_int.hpp>
 
 namespace dhtpp {
 	typedef boost::uint8_t uint8;
@@ -16,7 +15,6 @@ namespace dhtpp {
 
 	typedef std::string NodeIP;
 
-	//typedef boost::mp_math::mp_int<> BigInt;
 	typedef uint32 rpc_id;
 }
 

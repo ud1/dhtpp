@@ -6,22 +6,22 @@
 namespace dhtpp {
 
 	CStats::CStats() {
-		failed_find_value = succeed_find_value = 0;
+		store_to_first_node_count = 0;
 	}
 
 	CStats::~CStats() {
-		for (std::vector<NodeStateInfo *>::size_type i = 0; i < nodes_info.size(); ++i) {
-			delete nodes_info[i];
-		}
-		for (std::vector<RpcCounts *>::size_type i = 0; i < rpc_counts.size(); ++i) {
-			delete rpc_counts[i];
-		}
-		for (std::vector<FindReqsCountHist *>::size_type i = 0; i < find_node_req_count_hist.size(); ++i) {
-			delete find_node_req_count_hist[i];
-		}
-		for (std::vector<FindReqsCountHist *>::size_type i = 0; i < find_value_req_count_hist.size(); ++i) {
-			delete find_value_req_count_hist[i];
-		}
+		//for (std::vector<NodeStateInfo *>::size_type i = 0; i < nodes_info.size(); ++i) {
+		//	delete nodes_info[i];
+		//}
+		//for (std::vector<RpcCounts *>::size_type i = 0; i < rpc_counts.size(); ++i) {
+		//	delete rpc_counts[i];
+		//}
+		//for (std::vector<FindReqsCountHist *>::size_type i = 0; i < find_node_req_count_hist.size(); ++i) {
+		//	delete find_node_req_count_hist[i];
+		//}
+		//for (std::vector<FindReqsCountHist *>::size_type i = 0; i < find_value_req_count_hist.size(); ++i) {
+		//	delete find_value_req_count_hist[i];
+		//}
 	}
 
 	bool CStats::Save(const std::string &filename) {
@@ -99,8 +99,13 @@ namespace dhtpp {
 			out << "\n";
 		}
 
-		out << "failed_find_value;" << failed_find_value << "\n";
-		out << "succeed_find_value;" << succeed_find_value << "\n";
+		for (std::vector<uint64>::size_type i = 0; i < failed_find_value.size(); ++i) {
+			out << "failed_find_value;" << failed_find_value[i] << "\n";
+		}
+		for (std::vector<uint64>::size_type i = 0; i < succeed_find_value.size(); ++i) {
+			out << "succeed_find_value;" << succeed_find_value[i] << "\n";
+		}
+		out << "store_to_first_node_count;" << store_to_first_node_count << "\n";
 
 		return true;
 	}
@@ -121,11 +126,15 @@ namespace dhtpp {
 		find_value_req_count_hist.push_back(hist);
 	}
 
-	void CStats::InformAboutFailedFindValue() {
-		failed_find_value++;
+	void CStats::InformAboutFailedFindValue(uint64 duration) {
+		failed_find_value.push_back(duration);
 	}
 
-	void CStats::InformAboutSucceedFindValue() {
-		succeed_find_value++;
+	void CStats::InformAboutSucceedFindValue(uint64 duration) {
+		succeed_find_value.push_back(duration);
+	}
+
+	void CStats::InformAboutStoreToFirstNodeCount(uint64 count) {
+		store_to_first_node_count += count;
 	}
 }

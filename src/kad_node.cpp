@@ -15,6 +15,7 @@ namespace dhtpp {
 		join_pinging_nodesN = 0;
 		join_succeedN = 0;
 		join_state = NOT_JOINED;
+		store_to_first_node_count = 0;
 		store = new CStore(this, sched);
 	}
 
@@ -284,6 +285,24 @@ namespace dhtpp {
 
 		if (resp.values.size()) {
 			data->find_value_callback_(SUCCEED, &resp);
+
+			// store the key/value pair at the closest node seen which did not return the value
+			FindRequestData::Candidates::iterator it = data->candidates.begin();
+			for (; it != data->candidates.end(); ++it) {
+				FindRequestData::Candidate *cand = &*it;
+				if (cand->type != FindRequestData::Candidate::UP)
+					continue;
+				if (cand->id == resp.responder_id)
+					continue;
+				// Do store
+				for (std::vector<std::string>::size_type i = 0; i < resp.values.size(); ++i) {
+					StoreToNode(*cand, data->target, resp.values[i], republish_time,
+						boost::bind(&CKadNode::StoreToFirstNodeCallback, this, 
+						boost::lambda::_1, boost::lambda::_2, boost::lambda::_3));
+				}
+				break;
+			}
+
 			FinishSearch(data);
 			return;
 		}
@@ -763,6 +782,12 @@ namespace dhtpp {
 	void CKadNode::TerminateDownlistRequests() {
 		while (downlist_requests.size()) {
 			FinishDownlistRequests(*downlist_requests.begin());
+		}
+	}
+
+	void CKadNode::StoreToFirstNodeCallback(ErrorCode code, rpc_id id, const NodeID *max_distance) {
+		if (code == SUCCEED) {
+			++store_to_first_node_count;
 		}
 	}
 

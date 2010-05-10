@@ -105,7 +105,7 @@ namespace dhtpp {
 		void CheckRandomNode();
 		void SaveRpcCounts();
 		void CheckRandomValue(CKadNode *node);
-		void FindValueCallback(NodeID *key, CKadNode::ErrorCode code, const FindValueResponse *resp);
+		void FindValueCallback(uint64 start_time, CKadNode::ErrorCode code, const FindValueResponse *resp);
 		void StoreCallback(CKadNode::ErrorCode code, rpc_id id, const NodeID *max_distance);
 	};
 }

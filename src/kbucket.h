@@ -24,6 +24,7 @@ namespace dhtpp {
 		bool GetContact(const NodeID &id, Contact &cont) const;
 		bool LastSeenContact(Contact &out) const;
 		void GetContacts(std::vector<Contact> &out_contacts) const;
+		void GetContacts(std::vector<const Contact *> &out_contacts) const;
 		RoutingTableErrorCode Split(CKbucket &first, CKbucket &second) const;
 
 		const NodeID &GetHighBound() const {

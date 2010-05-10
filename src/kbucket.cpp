@@ -142,6 +142,12 @@ namespace dhtpp {
 		std::copy(contacts.begin(), contacts.end(), std::back_inserter(out_contacts));
 	}
 
+	void CKbucket::GetContacts(std::vector<const Contact *> &out_contacts) const {
+		for (ContactList::const_iterator it = contacts.begin(); it != contacts.end(); ++it) {
+			out_contacts.push_back(&*it);
+		}
+	}
+
 	RoutingTableErrorCode CKbucket::Split(CKbucket &first, CKbucket &second) const {
 		ContactList::const_iterator it = contacts.begin(), end_it = contacts.end();
 		RoutingTableErrorCode err;

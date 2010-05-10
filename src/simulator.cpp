@@ -225,6 +225,8 @@ namespace dhtpp {
 			} else delete find_value_hist;
 		}
 
+		stats->InformAboutStoreToFirstNodeCount(node->GetStoreToFirstNodeCount());
+
 		active_nodes.erase(node);
 		inactive_nodes.insert(nd);
 		delete node;
@@ -338,20 +340,21 @@ namespace dhtpp {
 		boost::uniform_int<> dist(0, values_total-1);
 		boost::variate_generator<boost::mt19937&, boost::uniform_int<> > rnd(gen, dist);
 		std::string value = "value" + boost::lexical_cast<std::string>(rnd());
-		NodeID *key = new NodeID;
-		sha.CalculateDigest(key->id, (const byte *) value.c_str(), value.size());
-		node->FindValue(*key, boost::bind(&CSimulator::FindValueCallback, this, key,
+		NodeID key;
+		sha.CalculateDigest(key.id, (const byte *) value.c_str(), value.size());
+		node->FindValue(key, boost::bind(&CSimulator::FindValueCallback, this, 
+			GetTimerInstance()->GetCurrentTime(),
 			boost::lambda::_1, boost::lambda::_2));
 	}
 
-	void CSimulator::FindValueCallback(NodeID *key, CKadNode::ErrorCode code, const FindValueResponse *resp) {
+	void CSimulator::FindValueCallback(uint64 start_time, CKadNode::ErrorCode code, const FindValueResponse *resp) {
+		uint64 finish_time = GetTimerInstance()->GetCurrentTime();
 		if (code == CKadNode::FAILED) {
-			stats->InformAboutFailedFindValue();
+			stats->InformAboutFailedFindValue(finish_time - start_time);
 			//printf("Find value failed\n");
 		} else if (code == CKadNode::SUCCEED) {
-			stats->InformAboutSucceedFindValue();
+			stats->InformAboutSucceedFindValue(finish_time - start_time);
 		}
-		delete key;
 	}
 
 	void CSimulator::StoreCallback(CKadNode::ErrorCode code, rpc_id id, const NodeID *max_distance) {

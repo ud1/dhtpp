@@ -86,6 +86,18 @@ namespace dhtpp {
 		NodeID holder_id;
 	};
 
+	template<typename T>
+	struct distance_comp_le_ptr {
+		distance_comp_le_ptr(const NodeID &holder_id_) : holder_id(holder_id_) {};
+
+		bool operator()(const T &f1, const T &f2) {
+			return (f1->GetId() ^ holder_id) <= // Less or equal
+				(f2->GetId() ^ holder_id);
+		}
+
+		NodeID holder_id;
+	};
+
 }
 
 #endif // DHT_CONTACT_H

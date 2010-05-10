@@ -79,6 +79,10 @@ namespace dhtpp {
 			return join_state == JOINED;
 		}
 
+		uint64 GetStoreToFirstNodeCount() const {
+			return store_to_first_node_count;
+		}
+
 	protected:
 		ITransport *transport;
 		NodeInfo my_info;
@@ -265,6 +269,9 @@ namespace dhtpp {
 
 		// Contacts we are pinging
 		std::set<NodeID> last_seen_contacts;
+
+		uint64 store_to_first_node_count;
+		void StoreToFirstNodeCallback(ErrorCode code, rpc_id id, const NodeID *max_distance);
 
 		void TerminatePingRequests();
 		void TerminateFindRequests();
