@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <fstream>
 
 namespace dhtpp {
 
@@ -32,26 +33,26 @@ namespace dhtpp {
 			std::map<int, int> count;
 		};
 
-		bool Save(const std::string &filename);
+		bool Open(const std::string &filename);
 		void SetNodesN(int nodes) {
 			nodesN = nodes;
 		}
-		void InformAboutNode(NodeStateInfo *info);
-		void InformAboutRpcCounts(RpcCounts *counts);
+		void Flush() {
+			out.flush();
+		}
+		void InformAboutNode(const NodeStateInfo &info);
+		void InformAboutRpcCounts(const RpcCounts &counts);
 
-		void InformAboutFindNodeReqCountHist(FindReqsCountHist *hist);
-		void InformAboutFindValueReqCountHist(FindReqsCountHist *hist);
-		void InformAboutFailedFindValue(uint64 duration);
-		void InformAboutSucceedFindValue(uint64 duration);
+		void InformAboutFindNodeReqCountHist(const FindReqsCountHist &hist);
+		void InformAboutFindValueReqCountHist(const FindReqsCountHist &hist);
+		void InformAboutFailedFindValue(uint64 t, uint64 duration);
+		void InformAboutSucceedFindValue(uint64 t, uint64 duration);
 		void InformAboutStoreToFirstNodeCount(uint64 count);
 
 	private:
 		int nodesN;
-		std::vector<NodeStateInfo *> nodes_info;
-		std::vector<RpcCounts *> rpc_counts;
-		std::vector<FindReqsCountHist *> find_node_req_count_hist, find_value_req_count_hist;
-		std::vector<uint64> failed_find_value, succeed_find_value;
 		uint64 store_to_first_node_count;
+		std::ofstream out;
 	};
 }
 

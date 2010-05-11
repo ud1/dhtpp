@@ -62,6 +62,7 @@
 namespace dhtpp {
 	const uint64 print_time_interval = 5000;
 	const uint64 print_rpc_counts_interval = 1000;
+	const uint64 flush_stats_interval = 60*1000;
 	static boost::mt19937 gen;
 
 	CTransport::CTransport(CJobScheduler *sched) {
@@ -115,7 +116,6 @@ namespace dhtpp {
 	CSimulator::CSimulator(int nodesN, CStats *st) {
 		transport = new CTransport(&scheduler);
 		stats = st;
-		stats->SetNodesN(nodesN);
 		values_counter = values_total = nodesN * values_per_node;
 
 		int seed = 0;
@@ -207,22 +207,20 @@ namespace dhtpp {
 			boost::bind(&CSimulator::ActivateNode, this, nd), nd);
 		transport->RemoveNode(node);
 
-		{
-			CStats::FindReqsCountHist *find_node_hist = new CStats::FindReqsCountHist;
-			find_node_hist->t = GetTimerInstance()->GetCurrentTime();
-			find_node_hist->count = node->GetFindNodeStats();
-			if (find_node_hist->count.size()) {
+		if (node->IsJoined()) {
+			CStats::FindReqsCountHist find_node_hist;
+			find_node_hist.t = GetTimerInstance()->GetCurrentTime();
+			find_node_hist.count = node->GetFindNodeStats();
+			if (find_node_hist.count.size()) {
 				stats->InformAboutFindNodeReqCountHist(find_node_hist);
-			} else delete find_node_hist;
-		}
+			};
 
-		{
-			CStats::FindReqsCountHist *find_value_hist = new CStats::FindReqsCountHist;
-			find_value_hist->t = GetTimerInstance()->GetCurrentTime();
-			find_value_hist->count = node->GetFindValueStats();
-			if (find_value_hist->count.size()) {
+			CStats::FindReqsCountHist find_value_hist;
+			find_value_hist.t = GetTimerInstance()->GetCurrentTime();
+			find_value_hist.count = node->GetFindValueStats();
+			if (find_value_hist.count.size()) {
 				stats->InformAboutFindValueReqCountHist(find_value_hist);
-			} else delete find_value_hist;
+			};
 		}
 
 		stats->InformAboutStoreToFirstNodeCount(node->GetStoreToFirstNodeCount());
@@ -269,6 +267,7 @@ namespace dhtpp {
 		scheduler.AddJob_(print_time_interval, boost::bind(&CSimulator::PrintTime, this), this);
 		scheduler.AddJob_(begin_stats, boost::bind(&CSimulator::CheckRandomNode, this), this);
 		scheduler.AddJob_(0, boost::bind(&CSimulator::SaveRpcCounts, this), this);
+		scheduler.AddJob_(0, boost::bind(&CSimulator::FlushStats, this), this);
 		scheduler.Run();
 	}
 
@@ -304,28 +303,28 @@ namespace dhtpp {
 			}
 		}
 		printf("CheckRandomNode: %d/%d %d/%d\n", active, addrs.size(), closest_active, closest.size());
-		CStats::NodeStateInfo *info = new CStats::NodeStateInfo;
-		info->routing_table_activeN = active;
-		info->routing_tableN = addrs.size();
-		info->closest_contacts_activeN = closest_active;
-		info->closest_contactsN = closest.size();
+		CStats::NodeStateInfo info;
+		info.routing_table_activeN = active;
+		info.routing_tableN = addrs.size();
+		info.closest_contacts_activeN = closest_active;
+		info.closest_contactsN = closest.size();
 		stats->InformAboutNode(info);
 	}
 
 	void CSimulator::SaveRpcCounts() {
 		scheduler.AddJob_(print_rpc_counts_interval, boost::bind(&CSimulator::SaveRpcCounts, this), this);
-		CStats::RpcCounts *counts = new CStats::RpcCounts;
-		counts->t = GetTimerInstance()->GetCurrentTime();
-		counts->ping_reqs = transport->PingRequest_counter;
-		counts->store_req = transport->StoreRequest_counter;
-		counts->find_node_req = transport->FindNodeRequest_counter;
-		counts->find_value_req = transport->FindValueRequest_counter;
-		counts->downlist_req = transport->DownlistRequest_counter;
-		counts->ping_resp = transport->PingResponse_counter;
-		counts->store_resp = transport->StoreResponse_counter;
-		counts->find_node_resp = transport->FindNodeResponse_counter;
-		counts->find_value_resp = transport->FindValueResponse_counter;
-		counts->downlist_resp = transport->DownlistResponse_counter;
+		CStats::RpcCounts counts;
+		counts.t = GetTimerInstance()->GetCurrentTime();
+		counts.ping_reqs = transport->PingRequest_counter;
+		counts.store_req = transport->StoreRequest_counter;
+		counts.find_node_req = transport->FindNodeRequest_counter;
+		counts.find_value_req = transport->FindValueRequest_counter;
+		counts.downlist_req = transport->DownlistRequest_counter;
+		counts.ping_resp = transport->PingResponse_counter;
+		counts.store_resp = transport->StoreResponse_counter;
+		counts.find_node_resp = transport->FindNodeResponse_counter;
+		counts.find_value_resp = transport->FindValueResponse_counter;
+		counts.downlist_resp = transport->DownlistResponse_counter;
 		stats->InformAboutRpcCounts(counts);
 	}
 
@@ -350,10 +349,10 @@ namespace dhtpp {
 	void CSimulator::FindValueCallback(uint64 start_time, CKadNode::ErrorCode code, const FindValueResponse *resp) {
 		uint64 finish_time = GetTimerInstance()->GetCurrentTime();
 		if (code == CKadNode::FAILED) {
-			stats->InformAboutFailedFindValue(finish_time - start_time);
+			stats->InformAboutFailedFindValue(finish_time, finish_time - start_time);
 			//printf("Find value failed\n");
 		} else if (code == CKadNode::SUCCEED) {
-			stats->InformAboutSucceedFindValue(finish_time - start_time);
+			stats->InformAboutSucceedFindValue(finish_time, finish_time - start_time);
 		}
 	}
 
@@ -361,5 +360,10 @@ namespace dhtpp {
 		if (code == CKadNode::FAILED) {
 			printf("Store Error\n");
 		}
+	}
+
+	void CSimulator::FlushStats() {
+		scheduler.AddJob_(flush_stats_interval, boost::bind(&CSimulator::FlushStats, this), this);
+		stats->Flush();
 	}
 }
