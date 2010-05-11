@@ -25,8 +25,8 @@ namespace dhtpp {
 	bool CRoutingTable::IdInHolderRange(const NodeID &id) const {
 		if (holder_bucket->IdInRange(id))
 			return true;
-		//if (holder_brother_bucket && holder_brother_bucket->IdInRange(id))
-		//	return true;
+		if (holder_brother_bucket && holder_brother_bucket->IdInRange(id))
+			return IsCloseToHolder(id);
 		return false;
 	}
 
@@ -95,6 +95,8 @@ namespace dhtpp {
 
 		if (&*it == holder_bucket) {
 			is_close_to_holder = true;
+		} else if (&*it == holder_brother_bucket) {
+			is_close_to_holder = IsCloseToHolder(node_id);			
 		} else {
 			is_close_to_holder = false;
 		}
@@ -190,6 +192,24 @@ namespace dhtpp {
 				out.push_back(contacts[i]);
 			}
 		}
+	}
+
+	bool CRoutingTable::IsCloseToHolder(const NodeID &id) const {
+		std::vector<const Contact *> close_contacts;
+		// Get contacts closest to us
+		GetClosestContacts(holder_id, close_contacts);
+
+		// Get min and max id
+		NodeID min_id = MaxNodeID();
+		NodeID max_id = NullNodeID();
+		std::vector<const Contact *>::iterator it = close_contacts.begin();
+		for (; it != close_contacts.end(); ++it) {
+			if ((*it)->id < min_id)
+				min_id = (*it)->id;
+			if ((*it)->id > max_id)
+				max_id = (*it)->id;
+		}
+		return (min_id >= id) && (id <= max_id);
 	}
 
 }

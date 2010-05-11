@@ -101,7 +101,7 @@ int main() {
 
 	//testNodeId();
 
-	int nodesN = 40000;
+	int nodesN = 1000;
 
 	CStats stats;
 	stats.SetNodesN(nodesN);

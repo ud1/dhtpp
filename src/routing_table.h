@@ -52,6 +52,8 @@ namespace dhtpp {
 		Buckets buckets;
 		CKbucketEntry *holder_bucket, *holder_brother_bucket;
 		NodeID holder_id;
+
+		bool IsCloseToHolder(const NodeID &id) const;
 	};
 
 }
