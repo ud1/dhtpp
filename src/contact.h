@@ -4,27 +4,37 @@
 #include "types.h"
 #include "node_id.h"
 
+#include <cassert>
+
 namespace dhtpp {
 
 	struct NodeAddress {
 		NodeIP ip;
 		uint16 port;
 
+		NodeAddress() {
+			ip = -2;
+		}
+
 		NodeAddress &operator =(const NodeAddress &o) {
 			ip = o.ip;
 			port = o.port;
+			assert(ip != -2);
 			return *this;
 		}
 
 		bool operator != (const NodeAddress &o) const {
+			assert(ip != -2);
 			return (ip != o.ip) || (port != o.port);
 		}
 
 		bool operator == (const NodeAddress &o) const {
+			assert(ip != -2);
 			return (ip == o.ip) && (port == o.port);
 		}
 
 		bool operator < (const NodeAddress &o) const {
+			assert(ip != -2);
 			if (ip < o.ip)
 				return true;
 			if (ip > o.ip)

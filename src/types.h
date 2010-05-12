@@ -4,6 +4,7 @@
 #include <string>
 
 #include <boost/cstdint.hpp>
+#include <boost/lexical_cast.hpp>
 
 namespace dhtpp {
 	typedef boost::uint8_t uint8;
@@ -13,7 +14,7 @@ namespace dhtpp {
 
 	typedef boost::uint64_t timestamp;
 
-	typedef std::string NodeIP;
+	typedef int NodeIP;
 
 	typedef uint32 rpc_id;
 }

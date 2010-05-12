@@ -36,8 +36,9 @@ namespace dhtpp {
 		assert(it != buckets.end());
 
 		is_close_to_holder = false;
-		RoutingTableErrorCode res = it->AddContact(info);
+
 		CKbucketEntry *ptr = &*it;
+		RoutingTableErrorCode res = ptr->AddContact(info);
 
 		if (res == SUCCEED) {
 			if (ptr == holder_bucket)

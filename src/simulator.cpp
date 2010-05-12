@@ -124,9 +124,10 @@ namespace dhtpp {
 		CryptoPP::SHA1 sha;
 
 		NodeInfo info;
-		info.ip = "supernode";
+		info.ip = -1;
 		info.port = 5555;
-		sha.CalculateDigest(info.id.id, (const byte *)info.ip.c_str(), info.ip.size());
+		std::string ip_str = std::string("node") + boost::lexical_cast<std::string>(info.ip);
+		sha.CalculateDigest(info.id.id, (const byte *)ip_str.c_str(), ip_str.size());
 		supernode = new CKadNode(info, &scheduler, transport);
 		active_nodes.insert(supernode);
 		transport->AddNode(supernode);
@@ -160,9 +161,10 @@ namespace dhtpp {
 			InactiveNode *nd = new InactiveNode;
 			inactive_nodes.insert(nd);
 			nd->bootstrap_contacts.push_back(supernode->GetNodeInfo());
-			nd->info.ip = "node" + boost::lexical_cast<std::string>(i);
+			nd->info.ip = i;
 			nd->info.port = 5555;
-			sha.CalculateDigest(nd->info.id.id, (const byte *)nd->info.ip.c_str(), nd->info.ip.size());
+			std::string ip_str = std::string("node") + boost::lexical_cast<std::string>(nd->info.ip);
+			sha.CalculateDigest(nd->info.id.id, (const byte *)ip_str.c_str(), ip_str.size());
 			scheduler.AddJob_(t, boost::bind(&CSimulator::ActivateNode, this, nd), nd);
 		}
 #endif

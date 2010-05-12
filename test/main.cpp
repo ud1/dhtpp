@@ -96,12 +96,14 @@ int main() {
 	//testKBucket();
 	//_CrtSetDbgFlag(
 	//	_CrtSetDbgFlag(_CRTDBG_REPORT_FLAG) |
-	//	_CRTDBG_LEAK_CHECK_DF
+	//	_CRTDBG_LEAK_CHECK_DF |
+	//	_CRTDBG_DELAY_FREE_MEM_DF |
+	//	_CRTDBG_CHECK_ALWAYS_DF
 	//	);
 
 	//testNodeId();
 
-	int nodesN = 1000;
+	int nodesN = 20000;
 
 	CStats stats;
 	stats.SetNodesN(nodesN);
