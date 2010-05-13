@@ -19,22 +19,18 @@ namespace dhtpp {
 		NodeAddress &operator =(const NodeAddress &o) {
 			ip = o.ip;
 			port = o.port;
-			assert(ip != -2);
 			return *this;
 		}
 
 		bool operator != (const NodeAddress &o) const {
-			assert(ip != -2);
 			return (ip != o.ip) || (port != o.port);
 		}
 
 		bool operator == (const NodeAddress &o) const {
-			assert(ip != -2);
 			return (ip == o.ip) && (port == o.port);
 		}
 
 		bool operator < (const NodeAddress &o) const {
-			assert(ip != -2);
 			if (ip < o.ip)
 				return true;
 			if (ip > o.ip)

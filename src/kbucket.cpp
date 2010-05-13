@@ -29,7 +29,6 @@ namespace dhtpp {
 		if (contacts.size() >= K)
 			return FULL;
 
-		printf("%d\n", contacts.size());
 		std::pair<ContactList::iterator, bool> res = contacts.insert(contact);
 		if (res.second)
 			return SUCCEED;
@@ -144,15 +143,8 @@ namespace dhtpp {
 	}
 
 	void CKbucket::GetContacts(std::vector<const Contact *> &out_contacts) const {
-		int i = 0;
-		static int cnt = 0;
-		printf("s %d %d\n", cnt++, contacts.size());
-		_CrtCheckMemory();
 		for (ContactList::const_iterator it = contacts.begin(); it != contacts.end(); ++it) {
-			printf("i = %d\n", i);
 			out_contacts.push_back(&*it);
-			printf("i_ = %d\n", i);
-			++i;
 		}
 	}
 

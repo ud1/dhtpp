@@ -12,7 +12,7 @@
 
 #include "../agner_random/stocc.h"
 
-#include <sha.h>
+#include "../sha1/SHA1.h"
 
 #include <iterator>
 
@@ -43,7 +43,7 @@
 		if (r.to == r.from) {																\
 			Do##name(new name(r)); /* loopback	*/											\
 		}																					\
-		bool is_not_lost = (float) rand() / RAND_MAX > packet_loss;							\
+		bool is_not_lost = (float) rand() / RAND_MAX >= packet_loss;						\
 		if (is_not_lost) {																	\
 			uint64 delay = network_delay + network_delay_delta * rand() / RAND_MAX;			\
 			scheduler->AddJob_(delay, boost::bind(&cl::Do##name, this, new name(r)), this); \
@@ -64,6 +64,13 @@ namespace dhtpp {
 	const uint64 print_rpc_counts_interval = 1000;
 	const uint64 flush_stats_interval = 60*1000;
 	static boost::mt19937 gen;
+
+	void CalculateDigest(uint8 *out, const uint8 *in, uint32 len) {
+		CSHA1 sha;
+		sha.Update(in, len);
+		sha.Final();
+		sha.GetHash(out);
+	}
 
 	CTransport::CTransport(CJobScheduler *sched) {
 		scheduler = sched;
@@ -121,13 +128,11 @@ namespace dhtpp {
 		int seed = 0;
 		random_lib = new StochasticLib2(seed);
 
-		CryptoPP::SHA1 sha;
-
 		NodeInfo info;
 		info.ip = -1;
 		info.port = 5555;
 		std::string ip_str = std::string("node") + boost::lexical_cast<std::string>(info.ip);
-		sha.CalculateDigest(info.id.id, (const byte *)ip_str.c_str(), ip_str.size());
+		CalculateDigest(info.id.id, (const uint8 *)ip_str.c_str(), ip_str.size());
 		supernode = new CKadNode(info, &scheduler, transport);
 		active_nodes.insert(supernode);
 		transport->AddNode(supernode);
@@ -164,7 +169,7 @@ namespace dhtpp {
 			nd->info.ip = i;
 			nd->info.port = 5555;
 			std::string ip_str = std::string("node") + boost::lexical_cast<std::string>(nd->info.ip);
-			sha.CalculateDigest(nd->info.id.id, (const byte *)ip_str.c_str(), ip_str.size());
+			CalculateDigest(nd->info.id.id, (const uint8 *)ip_str.c_str(), ip_str.size());
 			scheduler.AddJob_(t, boost::bind(&CSimulator::ActivateNode, this, nd), nd);
 		}
 #endif
@@ -194,7 +199,9 @@ namespace dhtpp {
 			boost::bind(&CSimulator::StartNodeLoop, this, node, boost::lambda::_1));
 		scheduler.AddJob_(GenerateRandomOnTime(),
 			boost::bind(&CSimulator::DeactivateNode, this, node), node);
-		transport->AddNode(node);
+		if (!transport->AddNode(node)) {
+			printf("Error\n");
+		}
 		active_nodes.insert(node);
 		inactive_nodes.erase(nd);
 		delete nd;
@@ -238,13 +245,11 @@ namespace dhtpp {
 			return;
 		}
 
-		CryptoPP::SHA1 sha;
-
 		int i = 0;
 		for (;values_counter > 0 && i < values_per_node; ++i, --values_counter) {
 			std::string value = "value" + boost::lexical_cast<std::string>(values_counter);
 			NodeID key;
-			sha.CalculateDigest(key.id, (const byte *) value.c_str(), value.size());
+			CalculateDigest(key.id, (const uint8 *) value.c_str(), value.size());
 			node->Store(key, value, expiration_time, 
 				boost::bind(&CSimulator::StoreCallback, this,
 				boost::lambda::_1,
@@ -337,12 +342,11 @@ namespace dhtpp {
 		if (values_counter > 0)
 			return;
 
-		CryptoPP::SHA1 sha;
 		boost::uniform_int<> dist(0, values_total-1);
 		boost::variate_generator<boost::mt19937&, boost::uniform_int<> > rnd(gen, dist);
 		std::string value = "value" + boost::lexical_cast<std::string>(rnd());
 		NodeID key;
-		sha.CalculateDigest(key.id, (const byte *) value.c_str(), value.size());
+		CalculateDigest(key.id, (const uint8 *) value.c_str(), value.size());
 		node->FindValue(key, boost::bind(&CSimulator::FindValueCallback, this, 
 			GetTimerInstance()->GetCurrentTime(),
 			boost::lambda::_1, boost::lambda::_2));
