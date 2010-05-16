@@ -5,6 +5,7 @@
 #include <cassert>
 #include <stdlib.h>
 #include <string>
+#include <stdlib.h>
 
 #include <boost/lexical_cast.hpp>
 
@@ -104,6 +105,8 @@ int main() {
 	//testNodeId();
 
 	int nodesN = 20000;
+
+	srand(time(0));
 
 	CStats stats;
 	stats.SetNodesN(nodesN);

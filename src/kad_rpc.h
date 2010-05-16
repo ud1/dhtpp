@@ -157,7 +157,7 @@ namespace dhtpp {
 
 		DownlistRequest &operator = (const DownlistRequest &o) {
 			*(RPCRequest *)this = o;
-			std::copy(o.down_nodes.begin(), o.down_nodes.end(), std::back_inserter(down_nodes));
+			down_nodes = o.down_nodes;
 			return *this;
 		}
 	};

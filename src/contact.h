@@ -9,6 +9,7 @@
 namespace dhtpp {
 
 	struct NodeAddress {
+		int do_not_crash;
 		NodeIP ip;
 		uint16 port;
 

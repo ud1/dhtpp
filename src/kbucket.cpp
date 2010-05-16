@@ -13,7 +13,7 @@ namespace dhtpp {
 	}
 
 	bool CKbucket::IdInRange(const NodeID &id) const {
-		return id >= low_bound && id < high_bound;
+		return id >= low_bound && id <= high_bound;
 	}
 
 	RoutingTableErrorCode CKbucket::AddContact(const NodeInfo &info) {
@@ -139,7 +139,8 @@ namespace dhtpp {
 	}
 
 	void CKbucket::GetContacts(std::vector<Contact> &out_contacts) const {
-		std::copy(contacts.begin(), contacts.end(), std::back_inserter(out_contacts));
+		out_contacts.insert(out_contacts.end(), contacts.begin(), contacts.end());
+		//std::copy(contacts.begin(), contacts.end(), std::back_inserter(out_contacts));
 	}
 
 	void CKbucket::GetContacts(std::vector<const Contact *> &out_contacts) const {

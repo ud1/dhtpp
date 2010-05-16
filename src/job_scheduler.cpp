@@ -27,6 +27,7 @@ namespace dhtpp {
 	}
 
 	void CJobScheduler::CancelJobsByOwner(const void *owner) {
+		_CrtCheckMemory();
 		mutex.Lock();
 		jobs.get<owner_tag>().erase(owner);
 		mutex.Unlock();

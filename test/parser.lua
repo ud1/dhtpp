@@ -1,4 +1,4 @@
-filename = "1273908923.txt"
+filename = "1273923776.txt"
 rpc_count_time_delta = 60000
 succeed_find_value_delta = 50
 failed_find_value_delta = 200
@@ -35,6 +35,10 @@ end
 function nodes_number_func(str)
 	nodes_number = tonumber(str)
 	print("nodes_number", nodes_number)
+end
+
+function DOWNLIST_OPTIMIZATION_func(str)
+	print("DOWNLIST_OPTIMIZATION", str) 
 end
 
 function count_rpc(t, cnt)
@@ -213,6 +217,7 @@ functions = {}
 functions["avg_on_time"] = avg_on_time
 functions["avg_off_time"] = avg_off_time
 functions["nodes_number"] = nodes_number_func
+functions["DOWNLIST_OPTIMIZATION"] = DOWNLIST_OPTIMIZATION_func
 functions["rpcs"] = rpcs
 functions["node_info"] = node_info
 functions["succeed_find_value"] = succeed_find_value

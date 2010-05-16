@@ -164,7 +164,8 @@ namespace dhtpp {
 
 		if (additional_contacts.size() <= contacts_needed) {
 			// return all what we have
-			std::copy(additional_contacts.begin(), additional_contacts.end(), std::back_inserter(out_contacts));
+			//std::copy(additional_contacts.begin(), additional_contacts.end(), std::back_inserter(out_contacts));
+			out_contacts.insert(out_contacts.end(), additional_contacts.begin(), additional_contacts.end());
 			return;
 		}
 
@@ -172,7 +173,8 @@ namespace dhtpp {
 		// sort them
 		std::sort(additional_contacts.begin(), additional_contacts.end(), distance_comp_le_ptr<const Contact *>(id));
 		// copy contacts with smallest distance
-		std::copy(additional_contacts.begin(), additional_contacts.begin() + contacts_needed, std::back_inserter(out_contacts));
+		out_contacts.insert(out_contacts.end(), additional_contacts.begin(), additional_contacts.begin() + contacts_needed);
+		//std::copy(additional_contacts.begin(), additional_contacts.begin() + contacts_needed, std::back_inserter(out_contacts));
 	}
 
 	void CRoutingTable::GetClosestContacts(const NodeID &id, std::vector<NodeInfo> &out_contacts) const {

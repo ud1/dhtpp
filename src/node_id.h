@@ -9,7 +9,7 @@ namespace dhtpp {
 	// Big endian
 	struct NodeID {
 		uint8 id[NODE_ID_LENGTH_BYTES];
-		//operator BigInt() const;
+
 		bool operator <(const NodeID &o) const;
 		bool operator <=(const NodeID &o) const;
 		bool operator >=(const NodeID &o) const {
