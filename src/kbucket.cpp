@@ -58,6 +58,10 @@ namespace dhtpp {
 				last_seen_weight = distance_weight = 0;
 			}
 
+			forceK(const forceK &o) {
+				*this = o;
+			}
+
 			forceK &operator =(const forceK &o) {
 				it = o.it;
 				last_seen_weight = o.last_seen_weight;
@@ -71,7 +75,7 @@ namespace dhtpp {
 		for (i = 0, it = contacts.begin(); it != contacts.end(); ++it, ++i)
 			forceK_[i].it = it;
 
-		std::sort(forceK_, forceK_ + K-1, distance_comp_ge<forceK>(holder_id));
+		std::sort(forceK_, forceK_ + K, distance_comp_ge<forceK>(holder_id));
 		for (i = 0; i < count; ++i) // only _count_ contacts
 			forceK_[i].distance_weight = i;
 
@@ -88,13 +92,13 @@ namespace dhtpp {
 
 		// find less useful contact
 		int less_useful_ind = 0;
-		int less_useful_weught = forceK_[0].last_seen_weight + forceK_[0].distance_weight;
+		int less_useful_weight = forceK_[0].last_seen_weight + forceK_[0].distance_weight;
 		
 		for (i = 1; i < count; ++i) {
 			int weight = forceK_[i].last_seen_weight + forceK_[i].distance_weight;
-			if (weight < less_useful_weught) {
+			if (weight < less_useful_weight) {
 				less_useful_ind = i;
-				weight = less_useful_weught;
+				weight = less_useful_weight;
 			}
 		}
 
