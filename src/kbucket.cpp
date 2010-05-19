@@ -40,6 +40,8 @@ namespace dhtpp {
 
 	RoutingTableErrorCode CKbucket::AddContactForceK(const NodeInfo &info, const NodeID &holder_id, uint16 count) {
 		assert(contacts.size() == K);
+		if (!count)
+			return FULL;
 
 #if !FORCE_K_OPTIMIZATION
 		return FULL;
@@ -75,7 +77,12 @@ namespace dhtpp {
 		for (i = 0, it = contacts.begin(); it != contacts.end(); ++it, ++i)
 			forceK_[i].it = it;
 
-		std::sort(forceK_, forceK_ + K, distance_comp_ge<forceK>(holder_id));
+		std::partial_sort(forceK_, forceK_ + count, forceK_ + K, distance_comp_ge<forceK>(holder_id));
+
+		// Check this contact in _count_ closest to _holder_id_ contacts
+		if ( (forceK_[count - 1].it->id ^ holder_id) < (info.id ^ holder_id) )
+			return FULL;
+
 		for (i = 0; i < count; ++i) // only _count_ contacts
 			forceK_[i].distance_weight = i;
 
@@ -144,7 +151,6 @@ namespace dhtpp {
 
 	void CKbucket::GetContacts(std::vector<Contact> &out_contacts) const {
 		out_contacts.insert(out_contacts.end(), contacts.begin(), contacts.end());
-		//std::copy(contacts.begin(), contacts.end(), std::back_inserter(out_contacts));
 	}
 
 	void CKbucket::GetContacts(std::vector<const Contact *> &out_contacts) const {
