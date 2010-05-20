@@ -50,7 +50,7 @@ namespace dhtpp {
 		typedef boost::intrusive::set<CKbucketEntry> Buckets;
 
 		Buckets buckets;
-		CKbucketEntry *holder_bucket, *holder_brother_bucket;
+		CKbucketEntry *holder_bucket, *holder_brother_bucket[hld_br_buck_count];
 		NodeID holder_id;
 
 		bool IsCloseToHolder(const NodeID &id) const;

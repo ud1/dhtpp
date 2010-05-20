@@ -159,16 +159,12 @@ namespace dhtpp {
 		}
 	}
 
-	RoutingTableErrorCode CKbucket::Split(CKbucket &first, CKbucket &second) const {
+	RoutingTableErrorCode CKbucket::CopyContactsTo(CKbucket &bk) const {
 		ContactList::const_iterator it = contacts.begin(), end_it = contacts.end();
 		RoutingTableErrorCode err;
 		for (; it != end_it; ++it) {
-			if (first.IdInRange(it->GetId())) {
-				if ( (err = first.AddContact(*it)) != SUCCEED )
-					return err;
-			} else {
-				assert(second.IdInRange(it->GetId()));
-				if ( (err = second.AddContact(*it)) != SUCCEED )
+			if (bk.IdInRange(it->GetId())) {
+				if ( (err = bk.AddContact(*it)) != SUCCEED )
 					return err;
 			}
 		}

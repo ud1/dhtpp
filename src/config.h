@@ -13,10 +13,10 @@ namespace dhtpp {
 	const uint64 republish_time = 3600*1000;
 	const uint64 republish_time_delta = 60*1000;
 	const uint64 expiration_time = 24*3600*1000;
-	const uint64 begin_stats = 30*60*1000;
-	const double avg_on_time		= 30*60*1000;
+	const uint64 begin_stats = 20*60*1000;
+	const double avg_on_time		= 10*60*1000;
 	const double avg_on_time_delta = 120*1000;
-	const double avg_off_time	= 30*60*1000;
+	const double avg_off_time	= 10*60*1000;
 	const double avg_off_time_delta = 120*1000;
 	const uint64 check_node_time_interval = 1000;
 	const uint64 check_value_time_interval = 5000;
@@ -28,8 +28,15 @@ namespace dhtpp {
 	const uint64 network_delay_delta = 50;
 	const float packet_loss = 0.1f;
 
+	const uint16 rt_b = 2;
+	const uint16 rt_r = 1; // rt_r <= rt_b
+
+	const uint16 rt_pow2_r = 1 << rt_r;
+	const uint16 rt_pow2_b_r = 1 << (rt_b - rt_r);
+	const uint16 hld_br_buck_count = (rt_pow2_r-1)*rt_pow2_b_r;
+
 #define FORCE_K_OPTIMIZATION 1
-#define DOWNLIST_OPTIMIZATION 0
+#define DOWNLIST_OPTIMIZATION 1
 }
 
 #endif // DHT_CONFIG_H

@@ -7,7 +7,7 @@ namespace dhtpp {
 
 	CRoutingTable::CRoutingTable(const NodeID &id) {
 		holder_id = id;
-		holder_brother_bucket = NULL;
+		memset(holder_brother_bucket, NULL, sizeof(holder_brother_bucket));
 
 		holder_bucket = new CKbucketEntry(NullNodeID(), MaxNodeID());
 		buckets.insert(*holder_bucket);
@@ -25,9 +25,7 @@ namespace dhtpp {
 	bool CRoutingTable::IdInHolderRange(const NodeID &id) const {
 		if (holder_bucket->IdInRange(id))
 			return true;
-		if (holder_brother_bucket && holder_brother_bucket->IdInRange(id))
-			return IsCloseToHolder(id);
-		return false;
+		return IsCloseToHolder(id);
 	}
 
 	RoutingTableErrorCode CRoutingTable::AddContact(const NodeInfo &info, bool &is_close_to_holder) {
@@ -48,37 +46,46 @@ namespace dhtpp {
 			if (ptr == holder_bucket) {
 				// Split the bucket
 				NodeID wid = (ptr->GetHighBound() - ptr->GetLowBound());
-				wid >>= 1;
-				CKbucketEntry *left = new CKbucketEntry(
-					ptr->GetLowBound(),
-					ptr->GetLowBound() + wid);
-
-				CKbucketEntry *right = new CKbucketEntry(
-					ptr->GetLowBound() + wid + 1,
-					ptr->GetHighBound());
-
-				ptr->Split(*left, *right);
+				wid >>= rt_r;
+				NodeID b_wid = wid >> (rt_b - rt_r);
+				NodeID left_bound = ptr->GetLowBound();
+				NodeID right_bound = left_bound + wid;
+				int ind = 0;
+				for (int i = 0; i < rt_pow2_r; ++i) {
+					if ((left_bound <= holder_id) && (holder_id <= right_bound)) {
+						holder_bucket = new CKbucketEntry(left_bound, right_bound);
+						ptr->CopyContactsTo(*holder_bucket);
+					} else {
+						NodeID b_left_bound = left_bound;
+						NodeID b_right_bound = b_left_bound + b_wid;
+						for (int j = 0; j < rt_pow2_b_r; ++j) {
+							holder_brother_bucket[ind] = new CKbucketEntry(b_left_bound, b_right_bound);
+							ptr->CopyContactsTo(*holder_brother_bucket[ind]);
+							b_left_bound = b_right_bound + 1;
+							b_right_bound = b_left_bound + b_wid;
+							++ind;
+						}
+					}
+					left_bound = right_bound + 1;
+					right_bound = left_bound + wid;
+				}
+				assert(ind == hld_br_buck_count);
+	
 				buckets.erase(it);
-				buckets.insert(*left);
-				buckets.insert(*right);
 				delete ptr;
 
-				if (left->IdInRange(holder_id)) {
-					holder_bucket = left;
-					holder_brother_bucket = right;
-				} else {
-					holder_bucket = right;
-					holder_brother_bucket = left;
+				buckets.insert(*holder_bucket);
+				for (int i = 0; i < hld_br_buck_count; ++i) {
+					buckets.insert(*holder_brother_bucket[i]);
 				}
 
 				return AddContact(info, is_close_to_holder);
-
-			} else if (ptr == holder_brother_bucket) {
+			} else if (std::count(holder_brother_bucket, holder_brother_bucket + hld_br_buck_count, ptr)) {
 				// ForceK optimization
 				uint16 count = K - holder_bucket->GetContactsNumber();
 				assert(count >= 0);
 				if (count > 0) {
-					return holder_brother_bucket->AddContactForceK(info, holder_id, count);
+					return ptr->AddContactForceK(info, holder_id, count);
 				}
 			}
 
@@ -96,10 +103,8 @@ namespace dhtpp {
 
 		if (&*it == holder_bucket) {
 			is_close_to_holder = true;
-		} else if (&*it == holder_brother_bucket) {
-			is_close_to_holder = IsCloseToHolder(node_id);			
 		} else {
-			is_close_to_holder = false;
+			is_close_to_holder = IsCloseToHolder(node_id);			
 		}
 
 		bool res = it->RemoveContact(node_id);
@@ -213,7 +218,7 @@ namespace dhtpp {
 			if ((*it)->id > max_id)
 				max_id = (*it)->id;
 		}
-		return (min_id >= id) && (id <= max_id);
+		return (min_id <= id) && (id <= max_id);
 	}
 
 }
