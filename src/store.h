@@ -7,6 +7,7 @@
 
 #include <map>
 #include <string>
+#include <boost/shared_ptr.hpp>
 
 namespace dhtpp {
 
@@ -30,17 +31,21 @@ namespace dhtpp {
 			bool max_distance_setted;
 			NodeID max_distance;
 		};
-		typedef std::multimap<NodeID, Item *> Store;
+		typedef boost::shared_ptr<Item> PItem;
+		typedef std::multimap<NodeID, PItem> Store;
 		Store store;
 		CKadNode *node;
 		CJobScheduler *scheduler;
 		int removed_contacts;
 
-		void RepublishItem(NodeID key, Item *item);
-		void DeleteItem(NodeID key, Item *item);
+		void RepublishItem(NodeID key, PItem item);
+		void DeleteItem(NodeID key, PItem item);
 		uint64 GetRandomRepublishTime();
 		uint64 GetRandomRepublishTimeDelta();
-		void StoreCallback(Item *item, CKadNode::ErrorCode code, rpc_id id, const NodeID *max_distance);
+		void StoreCallback(PItem item, CKadNode::ErrorCode code, rpc_id id, const NodeID *max_distance);
+
+		uint64 random_rep_time_delta_cached;
+		uint64 random_rep_time_delta_time;
 	};
 }
 

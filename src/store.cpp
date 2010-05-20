@@ -15,14 +15,15 @@ namespace dhtpp {
 		node = node_;
 		scheduler = scheduler_;
 		removed_contacts = 0;
+		random_rep_time_delta_cached = 0;
+		random_rep_time_delta_time = 0;
 	}
 
 	CStore::~CStore() {
 		Store::iterator it = store.begin();
 		while (it != store.end()) {
-			Item *item = it->second;
-			scheduler->CancelJobsByOwner(item);
-			delete item;
+			PItem item = it->second;
+			scheduler->CancelJobsByOwner(item.get());
 			it = store.erase(it);
 		}
 	}
@@ -31,28 +32,28 @@ namespace dhtpp {
 		Store::iterator it1, it2;
 		it1 = store.lower_bound(key);
 		it2 = store.upper_bound(key);
-		Item *item = NULL;
+		PItem item;
 		uint64 cur_time = GetTimerInstance()->GetCurrentTime();
 		for (; it1 != it2; ++it1) {
 			if (it1->second->value == value) {
 				// Already have this value, update timings
 				item = it1->second;
 				item->expiration_time = std::max(item->expiration_time, cur_time + time_to_live);
-				scheduler->CancelJobsByOwner(item);
+				scheduler->CancelJobsByOwner(item.get());
 				break;
 			}
 		}
 		if (!item) {
-			item = new Item;
+			item = PItem(new Item);
 			item->value = value;
 			item->expiration_time = cur_time + time_to_live;
 			store.insert(std::make_pair(key, item));
 		}
 		item->max_distance_setted = false;
 		scheduler->AddJob_(GetRandomRepublishTime(), 
-			boost::bind(&CStore::RepublishItem, this, key, item), item);
-		scheduler->AddJob_(item->expiration_time - cur_time, 
-			boost::bind(&CStore::DeleteItem, this, key, item), item);
+			boost::bind(&CStore::RepublishItem, this, key, item), item.get());
+		//scheduler->AddJob_(item->expiration_time - cur_time, 
+		//	boost::bind(&CStore::DeleteItem, this, key, item), item.get());
 	}
 
 	void CStore::GetItems(const NodeID &key, std::vector<std::string> &out_values) {
@@ -68,7 +69,7 @@ namespace dhtpp {
 		uint64 cur_time = GetTimerInstance()->GetCurrentTime();
 		Store::iterator it;
 		for (it = store.begin(); it != store.end(); ++it) {
-			Item *item = it->second;
+			PItem item = it->second;
 			NodeID distance = it->first ^ contact.id;
 			if ((item->max_distance_setted && distance < item->max_distance) 
 				|| (node->IsJoined() && is_close_to_holder && node->IdInHolderRange(it->first)))
@@ -88,19 +89,19 @@ namespace dhtpp {
 				Store::iterator it;
 				for (it = store.begin(); it != store.end(); ++it) {
 					if (node->IdInHolderRange(it->first)) {
-						Item *item = it->second;
-						scheduler->CancelJobsByOwner(item);
+						PItem item = it->second;
+						scheduler->CancelJobsByOwner(item.get());
 						scheduler->AddJob_(GetRandomRepublishTimeDelta(), 
-							boost::bind(&CStore::RepublishItem, this, it->first, item), item);
-						scheduler->AddJob_(item->expiration_time - cur_time, 
-							boost::bind(&CStore::DeleteItem, this, it->first, item), item);
+							boost::bind(&CStore::RepublishItem, this, it->first, item), item.get());
+						//scheduler->AddJob_(item->expiration_time - cur_time, 
+						//	boost::bind(&CStore::DeleteItem, this, it->first, item), item.get());
 					}
 				}
 			}
 		}
 	}
 
-	void CStore::RepublishItem(NodeID key, Item *item) {
+	void CStore::RepublishItem(NodeID key, PItem item) {
 		uint64 cur_time = GetTimerInstance()->GetCurrentTime();
 		if (cur_time >= item->expiration_time)
 			return;
@@ -108,25 +109,24 @@ namespace dhtpp {
 			boost::bind(&CStore::StoreCallback, this, item,
 			boost::lambda::_1, boost::lambda::_2, boost::lambda::_3));
 		scheduler->AddJob_(GetRandomRepublishTime(), 
-			boost::bind(&CStore::RepublishItem, this, key, item), item);
+			boost::bind(&CStore::RepublishItem, this, key, item), item.get());
 	}
 
-	void CStore::DeleteItem(NodeID key, Item *item) {
-		scheduler->CancelJobsByOwner(item);
+	void CStore::DeleteItem(NodeID key, PItem item) {
+		scheduler->CancelJobsByOwner(item.get());
 		Store::iterator it1, it2;
 		it1 = store.lower_bound(key);
 		it2 = store.upper_bound(key);
 		for (; it1 != it2; ++it1) {
-			Item *t = it1->second;
+			PItem t = it1->second;
 			if (t == item) {
 				store.erase(it1);
-				delete item;
 				return;
 			}
 		}
 	}
 
-	void CStore::StoreCallback(Item *item, CKadNode::ErrorCode code, rpc_id id, const NodeID *max_distance) {
+	void CStore::StoreCallback(PItem item, CKadNode::ErrorCode code, rpc_id id, const NodeID *max_distance) {
 		if (code == CKadNode::SUCCEED) {
 			item->max_distance_setted = true;
 			item->max_distance = *max_distance;
@@ -143,9 +143,16 @@ namespace dhtpp {
 	}
 
 	uint64 CStore::GetRandomRepublishTimeDelta() {
+		if (random_rep_time_delta_cached &&
+			(GetTimerInstance()->GetCurrentTime() - random_rep_time_delta_time < 10000))
+		{
+			return random_rep_time_delta_cached;
+		}
+
+		random_rep_time_delta_time = GetTimerInstance()->GetCurrentTime();
 		double rnd = (double) rand() / RAND_MAX;
 		double Ibeta = boost::math::ibeta_inv(2, 0.5, rnd);
-		return (uint64)(2*republish_time_delta*Ibeta);
+		return random_rep_time_delta_cached = (uint64)(2*republish_time_delta*Ibeta);
 	}
 
 }

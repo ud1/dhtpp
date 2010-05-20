@@ -43,6 +43,9 @@ namespace dhtpp {
 		out << "FORCE_K_OPTIMIZATION;" << FORCE_K_OPTIMIZATION << "\n";
 		out << "DOWNLIST_OPTIMIZATION;" << DOWNLIST_OPTIMIZATION << "\n";
 
+		out << "rt_b;" << rt_b << "\n";
+		out << "rt_r;" << rt_r << "\n";
+
 		return true;
 	}
 

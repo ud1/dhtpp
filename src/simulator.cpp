@@ -164,7 +164,7 @@ namespace dhtpp {
 		for (int i = 0; i < nodesN; ++i) {
 			uint64 t = (avg_on_time + avg_off_time) * i / nodesN;
 			InactiveNode *nd = new InactiveNode;
-			inactive_nodes.insert(nd);
+			//inactive_nodes.insert(nd);
 			nd->bootstrap_contacts.push_back(supernode->GetNodeInfo());
 			nd->info.ip = i;
 			nd->info.port = 5555;
@@ -202,8 +202,8 @@ namespace dhtpp {
 		if (!transport->AddNode(node)) {
 			printf("Error\n");
 		}
-		active_nodes.insert(node);
-		inactive_nodes.erase(nd);
+		//active_nodes.insert(node);
+		//inactive_nodes.erase(nd);
 		delete nd;
 	}
 
@@ -234,8 +234,8 @@ namespace dhtpp {
 
 		stats->InformAboutStoreToFirstNodeCount(node->GetStoreToFirstNodeCount());
 
-		active_nodes.erase(node);
-		inactive_nodes.insert(nd);
+		//active_nodes.erase(node);
+		//inactive_nodes.insert(nd);
 		delete node;
 	}
 

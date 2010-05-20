@@ -13,10 +13,10 @@ namespace dhtpp {
 	const uint64 republish_time = 3600*1000;
 	const uint64 republish_time_delta = 60*1000;
 	const uint64 expiration_time = 24*3600*1000;
-	const uint64 begin_stats = 20*60*1000;
-	const double avg_on_time		= 10*60*1000;
+	const uint64 begin_stats = 40*60*1000;
+	const double avg_on_time		= 20*60*1000;
 	const double avg_on_time_delta = 120*1000;
-	const double avg_off_time	= 10*60*1000;
+	const double avg_off_time	= 20*60*1000;
 	const double avg_off_time_delta = 120*1000;
 	const uint64 check_node_time_interval = 1000;
 	const uint64 check_value_time_interval = 5000;
