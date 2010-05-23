@@ -1,4 +1,4 @@
-filename = "1274094701.txt"
+filename = os.getenv("FILENAME")
 rpc_count_time_delta = 60000
 succeed_find_value_delta = 50
 failed_find_value_delta = 200
@@ -6,6 +6,8 @@ nodes_number = 0
 
 avg_on_time_val = 0
 avg_off_time_val = 0
+
+g_time = 0
 
 rpc_count = {}
 closest_contacts_hist = {}
@@ -20,6 +22,8 @@ findvalue_hist = {}
 findvalue_max = 0;
 min_time = 0;
 
+prt_oth = false
+
 function avg_on_time(str)
 	avg_on_time_val = tonumber(str)
 	print("avg_on_time", avg_on_time_val / 60000)
@@ -30,6 +34,14 @@ function avg_off_time(str)
 	print("avg_off_time", avg_off_time_val / 60000)
 	min_time = avg_on_time_val + avg_off_time_val
 	print("min_time", min_time / 60000)
+end
+
+function rt_b(str)
+	print("rt_b", str)
+end
+
+function rt_r(str)
+	print("rt_r", str)
 end
 
 function nodes_number_func(str)
@@ -73,6 +85,7 @@ function rpcs(str)
 	string.find(str, "(%d+);(%d+);(%d+);(%d+);(%d+);(%d+);(%d+);(%d+);(%d+);(%d+);(%d+)")
 	
 	t = tonumber(t)
+	g_time = t
 	prev_rpc.ping_req,			ping_req		= tonumber(ping_req),			tonumber(ping_req)			- prev_rpc.ping_req
 	prev_rpc.store_req,			store_req		= tonumber(store_req),			tonumber(store_req)			- prev_rpc.store_req
 	prev_rpc.find_node_req,		find_node_req	= tonumber(find_node_req),		tonumber(find_node_req)		- prev_rpc.find_node_req
@@ -101,6 +114,7 @@ end;
 avg_routing_table_contacts = 0
 avg_routing_table_contacts_count = 0
 function node_info(str)
+	if g_time < min_time then return end
 	_, _,
 	closest_contactsN, closest_contacts_activeN,
 	routing_tableN, routing_table_activeN =
@@ -131,6 +145,7 @@ function succeed_find_value(str)
 	_, _,
 	t, duration = string.find(str, "(%d+);(%d+)")
 	t = tonumber(t)
+	g_time = t
 	if t < min_time then return end
 
 	duration = tonumber(duration)
@@ -153,6 +168,7 @@ function failed_find_value(str)
 	_, _,
 	t, duration = string.find(str, "(%d+);(%d+)")
 	t = tonumber(t)
+	g_time = t
 	if t < min_time then return end
 
 	duration = tonumber(duration)
@@ -172,6 +188,7 @@ end
 function find_node_hist(str)
 	_, _, t, h = string.find(str, "([%d]+);(.+)")
 	t = tonumber(t)
+	g_time = t
 	if t < min_time then return end	
 	
 	pos = 1
@@ -194,6 +211,7 @@ end
 function find_value_hist(str)
 	_, _, t, h = string.find(str, "([%d]+);(.+)")
 	t = tonumber(t)
+	g_time = t
 	if t < min_time then return end	
 	
 	pos = 1
@@ -217,6 +235,8 @@ functions = {}
 functions["avg_on_time"] = avg_on_time
 functions["avg_off_time"] = avg_off_time
 functions["nodes_number"] = nodes_number_func
+functions["rt_b"] = rt_b
+functions["rt_r"] = rt_r
 functions["DOWNLIST_OPTIMIZATION"] = DOWNLIST_OPTIMIZATION_func
 functions["rpcs"] = rpcs
 functions["node_info"] = node_info
@@ -238,85 +258,86 @@ end
 
 
 rpc_period = (rpc_last_time - min_time) / 1000
-print("rpc count")
+_ = prt_oth and print("rpc count")
 for i, k in ipairs(rpc_count) do
-	print(i, k)
+	_ = prt_oth and print(i, k)
 end
-print()
+_ = prt_oth and print()
 
+print(filename)
 print("ping", rpc_count.ping / (rpc_period*nodes_number))
 print("store", rpc_count.store / (rpc_period*nodes_number))
 print("find_node", rpc_count.find_node / (rpc_period*nodes_number))
 print("find_value", rpc_count.find_value / (rpc_period*nodes_number))
 print("downlist", rpc_count.downlist / (rpc_period*nodes_number))
-print()
+_ = prt_oth and print()
 
 avg_closest_contacts = 0
 avg_closest_contacts_count = 0
-print("closest_contacts_hist")
+_ = prt_oth and print("closest_contacts_hist")
 for i = 0, 10 do
 	local cnt = closest_contacts_hist[i] or 0
 	avg_closest_contacts = avg_closest_contacts + i*cnt
 	avg_closest_contacts_count = avg_closest_contacts_count + cnt
-	print(i, cnt)
+	_ = prt_oth and print(i, cnt)
 end
 avg_closest_contacts = avg_closest_contacts / avg_closest_contacts_count
 print("avg_closest_contacts", avg_closest_contacts)
-print()
+_ = prt_oth and print()
 
 
-print("routing_table_hist")
+_ = prt_oth and print("routing_table_hist")
 for i = 0, 10 do
-	print(i, (routing_table_hist[i] or 0))
+	_ = prt_oth and print(i, (routing_table_hist[i] or 0))
 end
 avg_routing_table_contacts = avg_routing_table_contacts / avg_routing_table_contacts_count
 print("avg_routing_table_contacts", avg_routing_table_contacts)
-print()
+_ = prt_oth and print()
 
 
-print("succeed_find_value_duration_hist")
+_ = prt_oth and print("succeed_find_value_duration_hist")
 for i = 0, succeed_find_value_max_duration do
-	print(i, (succeed_find_value_duration_hist[i] or 0))
+	_ = prt_oth and print(i, (succeed_find_value_duration_hist[i] or 0))
 end
 avg_succeed_findvalue_duration = avg_succeed_findvalue_duration / avg_succeed_findvalue_count
 print("avg_succeed_findvalue_duration", avg_succeed_findvalue_duration)
-print()
+_ = prt_oth and print()
 
 
-print("failed_find_value_duration_hist")
+_ = prt_oth and print("failed_find_value_duration_hist")
 for i = 0, failed_find_value_max_duration do
-	print(i, (failed_find_value_duration_hist[i] or 0))
+	_ = prt_oth and print(i, (failed_find_value_duration_hist[i] or 0))
 end
 avg_failed_findvalue_duration = avg_failed_findvalue_duration / avg_failed_findvalue_count
 print("avg_failed_findvalue_duration", avg_failed_findvalue_duration)
 
 print("failed/succed", avg_failed_findvalue_count / avg_succeed_findvalue_count)
-print()
+_ = prt_oth and print()
 
 
 avg_findnode = 0
 findnode_count = 0
-print("findnode_hist")
+_ = prt_oth and print("findnode_hist")
 for i = 0, findnode_max do
 	local cnt = findnode_hist[i] or 0
 	avg_findnode = avg_findnode + i*cnt
 	findnode_count = findnode_count + cnt
-	print(i, cnt)
+	_ = prt_oth and print(i, cnt)
 end
 avg_findnode = avg_findnode / findnode_count
 print("avg_findnode", avg_findnode)
-print()
+_ = prt_oth and print()
 
 
 avg_findvalue = 0
 findvalue_count = 0
-print("findvalue_hist")
+_ = prt_oth and print("findvalue_hist")
 for i = 0, findvalue_max do
 	local cnt = findvalue_hist[i] or 0
 	avg_findvalue = avg_findvalue + i*cnt
 	findvalue_count = findvalue_count + cnt
-	print(i, cnt)
+	_ = prt_oth and print(i, cnt)
 end
 avg_findvalue = avg_findvalue / findvalue_count
 print("avg_findvalue", avg_findvalue)
-print()
+_ = prt_oth and print()
