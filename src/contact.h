@@ -9,9 +9,9 @@
 namespace dhtpp {
 
 	struct NodeAddress {
-		int do_not_crash;
+		//int do_not_crash;
 		NodeIP ip;
-		uint16 port;
+		//uint16 port;
 
 		NodeAddress() {
 			ip = -2;
@@ -19,16 +19,16 @@ namespace dhtpp {
 
 		NodeAddress &operator =(const NodeAddress &o) {
 			ip = o.ip;
-			port = o.port;
+			//port = o.port;
 			return *this;
 		}
 
 		bool operator != (const NodeAddress &o) const {
-			return (ip != o.ip) || (port != o.port);
+			return (ip != o.ip) /*|| (port != o.port)*/;
 		}
 
 		bool operator == (const NodeAddress &o) const {
-			return (ip == o.ip) && (port == o.port);
+			return (ip == o.ip) /*&& (port == o.port)*/;
 		}
 
 		bool operator < (const NodeAddress &o) const {
@@ -36,7 +36,8 @@ namespace dhtpp {
 				return true;
 			if (ip > o.ip)
 				return false;
-			return port < o.port;
+			//return port < o.port;
+			return false;
 		}
 	};
 

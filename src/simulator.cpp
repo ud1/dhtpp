@@ -130,7 +130,7 @@ namespace dhtpp {
 
 		NodeInfo info;
 		info.ip = -1;
-		info.port = 5555;
+		//info.port = 5555;
 		std::string ip_str = std::string("node") + boost::lexical_cast<std::string>(info.ip);
 		CalculateDigest(info.id.id, (const uint8 *)ip_str.c_str(), ip_str.size());
 		supernode = new CKadNode(info, &scheduler, transport);
@@ -167,7 +167,7 @@ namespace dhtpp {
 			//inactive_nodes.insert(nd);
 			nd->bootstrap_contacts.push_back(supernode->GetNodeInfo());
 			nd->info.ip = i;
-			nd->info.port = 5555;
+			//nd->info.port = 5555;
 			std::string ip_str = std::string("node") + boost::lexical_cast<std::string>(nd->info.ip);
 			CalculateDigest(nd->info.id.id, (const uint8 *)ip_str.c_str(), ip_str.size());
 			scheduler.AddJob_(t, boost::bind(&CSimulator::ActivateNode, this, nd), nd);
@@ -247,7 +247,7 @@ namespace dhtpp {
 
 		int i = 0;
 		for (;values_counter > 0 && i < values_per_node; ++i, --values_counter) {
-			std::string value = "value" + boost::lexical_cast<std::string>(values_counter);
+			std::string value = "v" + boost::lexical_cast<std::string>(values_counter);
 			NodeID key;
 			CalculateDigest(key.id, (const uint8 *) value.c_str(), value.size());
 			node->Store(key, value, expiration_time, 
@@ -344,7 +344,7 @@ namespace dhtpp {
 
 		boost::uniform_int<> dist(0, values_total-1);
 		boost::variate_generator<boost::mt19937&, boost::uniform_int<> > rnd(gen, dist);
-		std::string value = "value" + boost::lexical_cast<std::string>(rnd());
+		std::string value = "v" + boost::lexical_cast<std::string>(rnd());
 		NodeID key;
 		CalculateDigest(key.id, (const uint8 *) value.c_str(), value.size());
 		node->FindValue(key, boost::bind(&CSimulator::FindValueCallback, this, 

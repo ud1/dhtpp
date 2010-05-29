@@ -112,6 +112,7 @@ function rpcs(str)
 end;
 
 avg_routing_table_contacts = 0
+avg_routing_table_contactsN = 0
 avg_routing_table_contacts_count = 0
 function node_info(str)
 	if g_time < min_time then return end
@@ -134,12 +135,14 @@ function node_info(str)
 	
 	if routing_tableN > 0 then
 		avg_routing_table_contacts = avg_routing_table_contacts + routing_table_activeN / routing_tableN
+		avg_routing_table_contactsN = avg_routing_table_contactsN + routing_tableN
+		avg_routing_table_contacts_count = avg_routing_table_contacts_count + 1		
 	end
-	avg_routing_table_contacts_count = avg_routing_table_contacts_count + 1
 end
 
 
 avg_succeed_findvalue_duration = 0
+avg_succeed_findvalue_duration_sqr = 0
 avg_succeed_findvalue_count = 0
 function succeed_find_value(str)
 	_, _,
@@ -150,6 +153,7 @@ function succeed_find_value(str)
 
 	duration = tonumber(duration)
 	avg_succeed_findvalue_duration = avg_succeed_findvalue_duration + duration
+	avg_succeed_findvalue_duration_sqr = avg_succeed_findvalue_duration_sqr + duration*duration
 	avg_succeed_findvalue_count = avg_succeed_findvalue_count + 1
 	duration = math.floor(duration / succeed_find_value_delta)
 	
@@ -291,16 +295,31 @@ for i = 0, 10 do
 	_ = prt_oth and print(i, (routing_table_hist[i] or 0))
 end
 avg_routing_table_contacts = avg_routing_table_contacts / avg_routing_table_contacts_count
+avg_routing_table_contactsN = avg_routing_table_contactsN / avg_routing_table_contacts_count
 print("avg_routing_table_contacts", avg_routing_table_contacts)
+print("avg_routing_table_contactsN", avg_routing_table_contactsN)
 _ = prt_oth and print()
 
 
 _ = prt_oth and print("succeed_find_value_duration_hist")
+total = 0
 for i = 0, succeed_find_value_max_duration do
-	_ = prt_oth and print(i, (succeed_find_value_duration_hist[i] or 0))
+	local c = succeed_find_value_duration_hist[i] or 0
+	total = total + c
+	_ = prt_oth and print(i, c)
 end
+_ = prt_oth and print("total", total)
+for i = 0, succeed_find_value_max_duration do
+	local c = succeed_find_value_duration_hist[i] or 0
+	_ = prt_oth and print("(" .. i .. ", " .. c / total)
+end
+
 avg_succeed_findvalue_duration = avg_succeed_findvalue_duration / avg_succeed_findvalue_count
+avg_succeed_findvalue_duration_sqr = avg_succeed_findvalue_duration_sqr / avg_succeed_findvalue_count
+print("avg_succeed_findvalue_duration_sqr", avg_succeed_findvalue_duration_sqr)
+avg_succeed_findvalue_duration_sigma = math.sqrt(avg_succeed_findvalue_duration_sqr - avg_succeed_findvalue_duration*avg_succeed_findvalue_duration)
 print("avg_succeed_findvalue_duration", avg_succeed_findvalue_duration)
+print("avg_succeed_findvalue_duration_sigma", avg_succeed_findvalue_duration_sigma)
 _ = prt_oth and print()
 
 
@@ -341,3 +360,9 @@ end
 avg_findvalue = avg_findvalue / findvalue_count
 print("avg_findvalue", avg_findvalue)
 _ = prt_oth and print()
+_ = prt_oth and print("findvalue_count", findvalue_count)
+for i = 0, findvalue_max do
+	local cnt = findvalue_hist[i] or 0
+	_ = prt_oth and print("(" .. i .. ", " .. 100*cnt / findvalue_count .. ")")
+end
+
