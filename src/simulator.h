@@ -37,6 +37,7 @@ namespace dhtpp {
 	class CTransport : public ITransport {
 	public:
 		CTransport(CJobScheduler *scheduler);
+		~CTransport();
 		bool AddNode(CKadNode *node);
 		bool RemoveNode(CKadNode *node);
 

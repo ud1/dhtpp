@@ -28,6 +28,8 @@ namespace dhtpp {
 	const uint64 network_delay_delta = 50;
 	const float packet_loss = 0.1f;
 
+	const uint64 run_time = avg_on_time + avg_off_time + 5*60*1000;
+
 	const uint16 rt_b = 2;
 	const uint16 rt_r = 1; // rt_r <= rt_b
 

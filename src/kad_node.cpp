@@ -791,4 +791,8 @@ namespace dhtpp {
 		}
 	}
 
+	void CKadNode::SaveStoreTo(std::ofstream &f) const {
+		store->SaveStoreTo(f);
+	}
+
 }

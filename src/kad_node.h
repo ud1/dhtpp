@@ -83,6 +83,8 @@ namespace dhtpp {
 			return store_to_first_node_count;
 		}
 
+		void SaveStoreTo(std::ofstream &f) const;
+
 	protected:
 		ITransport *transport;
 		NodeInfo my_info;

@@ -155,6 +155,18 @@ namespace dhtpp {
 		return random_rep_time_delta_cached = (uint64)(2*republish_time_delta*Ibeta);
 	}
 
+	void CStore::SaveStoreTo(std::ofstream &f) const {
+		if (store.empty())
+			return;
+		f << store.size() << ";";
+
+		Store::const_iterator it = store.begin();
+		for (; it != store.end(); ++it) {
+			f << it->second->value << ";";
+		}
+
+		f << "\n";
+	}
 }
 
 

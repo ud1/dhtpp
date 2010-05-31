@@ -76,6 +76,19 @@ namespace dhtpp {
 		scheduler = sched;
 	}
 
+	CTransport::~CTransport() {
+		std::string filename = boost::lexical_cast<std::string>(time(NULL));
+		filename += "store_dmp.txt";
+		std::ofstream out(filename.c_str());
+		if (!out)
+			return;
+
+		Nodes::iterator it = nodes.begin();
+		for (; it != nodes.end(); ++it) {
+			it->second->SaveStoreTo(out);
+		}
+	}
+
 	bool CTransport::AddNode(CKadNode *node) {
 		return nodes.insert(std::make_pair((NodeAddress)node->GetNodeInfo(), node)).second;
 	}
@@ -176,6 +189,9 @@ namespace dhtpp {
 	}
 
 	CSimulator::~CSimulator() {
+		delete transport;
+		delete random_lib;
+
 		std::set<CKadNode *>::iterator ait = active_nodes.begin();
 		for (; ait != active_nodes.end(); ++ait) {
 			delete *ait;
@@ -185,9 +201,6 @@ namespace dhtpp {
 		for (; iit != inactive_nodes.end(); ++iit) {
 			delete *iit;
 		}
-
-		delete transport;
-		delete random_lib;
 	}
 
 	void CSimulator::ActivateNode(InactiveNode *nd) {

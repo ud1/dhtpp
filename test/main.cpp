@@ -1,6 +1,7 @@
 #include "../src/kbucket.h"
 #include "../src/simulator.h"
 #include "../src/stats.h"
+#include "../src/config.h"
 
 #include <cassert>
 #include <stdlib.h>
@@ -116,7 +117,7 @@ int main() {
 	stats.Open(filename);
 
 	CSimulator sim(nodesN, &stats);
-	sim.Run(4*3600*1000);
+	sim.Run(run_time);
 
 	return 0;
 }

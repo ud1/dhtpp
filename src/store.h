@@ -5,6 +5,7 @@
 #include "job_scheduler.h"
 #include "kad_node.h"
 
+#include <fstream>
 #include <map>
 #include <string>
 #include <boost/shared_ptr.hpp>
@@ -19,6 +20,7 @@ namespace dhtpp {
 		void GetItems(const NodeID &key, std::vector<std::string> &out_values);
 		void OnNewContact(const NodeInfo &contact, bool is_close_to_holder);
 		void OnRemoveContact(const NodeID &contact, bool is_close_to_holder);
+		void SaveStoreTo(std::ofstream &f) const;
 
 	private:
 		struct Item {
